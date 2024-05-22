@@ -1,0 +1,119 @@
+_________________________TAG______________________________________________
+done: đã làm xong
+undone: chưa làm xong
+question: đặt ra câu hỏi
+From x.: đến từ log thứ x
+future: ý tưởng phát triển cho tương lai
+________________________LOG_____________________________________________
+--------------First day---------------------------------------------------
+1. Customer có thuộc tính CustomerType						(done)
+= 0 -> Student 
+= 1 -> Visitor (Khách vãng lai)
+2. VISITOR có TicketID là vé được phát khi vào và dùng để đưa khi lấy xe ra 
+	Sử dụng UUID sinh ngẫu nhiên TicketID					(done)
+3. STUDENT sử dụng mssv và password để đăng nhập			(done)
+4. TRANSACTION sử dụng transaction_type 					(done)
++ 1 -> nạp tiền
++ 0 -> gửi xe
+5. spot_type có vehicleType 								
++ 0 -> xe đạp, xe máy
++ 1 -> ô tô
+6. Thêm trigger để số spot không được vượt quá capacity
+	// Khi add tự động tăng capacity						(undone)
+7. Bãi đỗ B1 chỉ để xe máy									
+8. Lúc đi vào kiểm tra loại xe, xem nhà xe còn chỗ không	(done)
+9. Tạo 1 bảng chứa các câu truy vấn đề làm bài 25 câu truy vấn (undone)
+10. Xử lý chỉ có 1 xe của 1 customer ID được gửi vào 		(undone)
+	customerId có ràng buộc UNIQUE trong table Vehicle do mỗi lần 1 customer chỉ gửi 1 xe vào database (done)
+		i. Việc lưu nhiều xe cũng không có nhiều ý nghĩa vì thông thường cũng chỉ gửi 1 xe, nếu cần gửi nhiều xe sử dụng gửi như 1 visitor
+ 
+--------------------10/5/2024------------------------------------------------------
+11. *Đang viết hàm addCustomer theo typeCustom và trả số về ID vừa được add
+	Hàm customer tùy chọn theo input nếu input là tên và mssv add cả tên và mssv 
+
+-> Đổi thành viết 2 Hàm
+	Thủ tục addStudent(mssv, name)	(done)
+	Hàm addVisitor trả lại mã vé	(done)
+
+
+12. Chỉnh sửa customerID tự động tăng -> lúc đầu đã đặt là SERIAL (done)
+
+13. Add On DELETE CASCADE vào tham chiếu khóa ngoại của bảng foreign key nên khi xóa hàng ở bảng đc tham chiếu sẽ xóa những hàng tham chiếu (done)
+
+14. Thêm quản lý database cho Admin
+	+ Mở ER MODEL GRAPH (done)
+	+ Thực hiện truy vấn SQL (done)
+
+15. Xử lý thêm nhân viên (done)
+	Set default password của nhân viên '123456' (done)
+
+16. Xử lý đăng nhập nhân viên -> Xử lý mục Làm việc của nhân viên 
+	-> Sinh viên -> Vào Bãi
+	+ Viết hàm vào thêm xe vào bãi cho sinh viên			(undone)
+
+17. Hàm trả về số chỗ trống còn lại của một bãi đỗ xe (int availableSpots(ParkingLotID)) (done)
+	// Chưa xử lý loại xe (undone)
+18. In danh sách bãi đỗ xe để lúc ADMIn add nhân viên biết mà điền (done)
+
+------------------11/5/2024----------------------------------------------------------------
+19. (From 17.) Xử lý trả về số vị trí cho loại xe từng bãi (done)
+	-> (Question) Có nên bỏ privileged/ thêm đăng kí vị trí độc quyền cho sinh viên 
+		trả thêm tiền mỗi tháng 
+	-> thêm số điện thoại để báo sms hết tiền? (future)
+
+20. Xử lý đọc thông tin biển số, màu xe bằng quét hình ảnh bằng AI (future)
+
+21. Thêm thông tin đang làm bãi đỗ xe nào cho nhân viên sau khi đăng nhập (done)
+	Chuyển dữ liệu truyền qua các funtion vào biến cục bộ (tips: sử dụng dict)
+	+ staff (done)
+	+ student
+
+22. Chia ca cho nhân viên, và mục xem lịch làm việc (future)
+
+23. Thêm thay đổi mk cho staff (done)
+
+24. Xử lý student_in: sinh viên vào gửi xe (done)
+	có 2 lỗi khi gửi xe Vào
+	+ mssv không tồn tại (done)
+	+ đã gửi xe (done)
+	+ chưa xác định đc position_spot (done)
+
+25. quét thẻ sinh viên bằng cảm biến khi đi vào-ra bãi (future)
+
+26. (question) xóa Visitor khi đi ra khỏi Bãi
+
+27. (question) tạo exit_log(logid, license_plate, exit_time)
+
+28. Viết hàm getCustomerId(mssv) (done) 
+	-> raise exception nếu không tìm đc (done)
+	Viết hàm getParkingLotId(staffId) (done)
+	-> (question) raise exception nếu không tìm đc
+
+29. Xóa sinh viên, visitor chưa có tự động xóa customerId (undone)
+
+------------------- 17/5/2024 -------------------------------------------
+30. ERD mất liên kết khóa ngoại (done)
+
+31. Nâng cấp availableSpots nếu có trả lại id Spot nhỏ nhất đang trống có thể để loại xe đó
+	-> new function: get_available_spot (TIP: dùng size mới tạo ở mục 32) (done)
+32. Chuyển sang sử dụng size cho các ô đỗ và kích thước xe (done)
+33. Tạm bỏ qua isPrivileged
+34. (from 24.) Khi sinh viên thêm xe vào thì tự động chuyển spot sang occuppied 
+	Viết trigger Insert park (done)
+	Tạo trigger khi update time cho exit từ NULL thành số khác thì tự chuyển thành occupied FALSE (doing
+)
+35. Làm visitor_in	(done)
+	a. Xử lý hàm chonlaixe trong student_in để sử dụng lại trong visitor_in (done)
+
+36. (done) Update hàm getCustomerId(ticketid) 
+
+--------------------19/5/2024--------------------------------------------b
+37. Student_out (doing)
+	+ thủ tục vehicle_out(vehicle_id) (done)
+	+ getVehicleId(string): nếu input string 8 kí tự tìm mssv, nếu nhiều hơn tìm UUID, ko tìm thấy raise exception (done)
+	+ khi mà update exit_time thì đồng thời xóa vehicle 
+	(!) Nếu xóa vehicle thì không còn biển số lưu lại lịch sử trong park
+38. Trừ tiền khi sinh viên vào (undone)
+39. kiểm tra còn đủ tiền không (undone)
+40. (Q) kiểm tra có lấy đúng xe khi ra không
+41. Lưu lại số tiền kiếm được (undone)
