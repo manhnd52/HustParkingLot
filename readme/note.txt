@@ -49,7 +49,7 @@ ________________________LOG_____________________________________________
 
 16. Xử lý đăng nhập nhân viên -> Xử lý mục Làm việc của nhân viên 
 	-> Sinh viên -> Vào Bãi
-	+ Viết hàm vào thêm xe vào bãi cho sinh viên			(undone)
+	+ Viết hàm vào thêm xe vào bãi cho sinh viên			(done)
 
 17. Hàm trả về số chỗ trống còn lại của một bãi đỗ xe (int availableSpots(ParkingLotID)) (done)
 	// Chưa xử lý loại xe (undone)
@@ -107,13 +107,13 @@ ________________________LOG_____________________________________________
 
 36. (done) Update hàm getCustomerId(ticketid) 
 
---------------------19/5/2024--------------------------------------------b
+--------------------19/5/2024--------------------------------------------
 37. Student_out (doing)
 	+ thủ tục vehicle_out(vehicle_id) (done)
 	+ getVehicleId(string): nếu input string 8 kí tự tìm mssv, nếu nhiều hơn tìm UUID, ko tìm thấy raise exception (done)
-	+ khi mà update exit_time thì đồng thời xóa vehicle 
+	+ khi mà update exit_time thì đồng thời xóa vehicle (undone)
 	(!) Nếu xóa vehicle thì không còn biển số lưu lại lịch sử trong park
-38. Trừ tiền khi sinh viên vào (undone)
-39. kiểm tra còn đủ tiền không (undone)
+38. Trừ tiền khi sinh viên vào (doing)
+39. kiểm tra còn đủ tiền không (doing)
 40. (Q) kiểm tra có lấy đúng xe khi ra không
 41. Lưu lại số tiền kiếm được (undone)

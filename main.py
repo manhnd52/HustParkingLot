@@ -1,6 +1,6 @@
 import re
 import psycopg2
-# import tabulate # type: ignore
+from tabulate import tabulate
 import os
 from getpass import getpass 
 
@@ -30,7 +30,7 @@ color_translation = {
 
 mssv_regex = r"^20\d{6}$" # Mã số sinh viên phải bắt đầu bằng 20 và có 8 chữ số (regular expression)
 
-# staff_login_info
+# staff_login_info lưu thông tin đăng nhập global dùng cho các hàm liên quan
 staff_login_info = {
     "staffid": 0,
     "fullname": "",
@@ -284,16 +284,18 @@ def chonloaixe():       # hàm trả về vị trí để xe trong bãi
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor: 
                 print("Chọn loại xe: ")
-                cursor.execute("SELECT DISTINCT vehicletypeid, name, size FROM vehicle_type ORDER BY vehicletypeid ASC")
-                rows = {row[0]: (row[1], row[2]) for row in cursor.fetchall()}
+                cursor.execute("SELECT DISTINCT vehicletypeid, name, price, size FROM vehicle_type ORDER BY vehicletypeid ASC")
+                # tạo ra dictionnary lưu thông tin các loại xe
+                rows = {row[0]: (row[1], row[2], row[3]) for row in cursor.fetchall()} 
                 for i, row in rows.items():
                     print(f"{i}. {row[0]}")
                 vehicleTypeId = int(input("Loại xe (nhập ID): "))
                 size  = rows[vehicleTypeId][1]
+                price = rows[vehicleTypeId][2] 
                 cursor.execute("""
                 SELECT  getavailableSpots(getParkingLotId(%s), %s)              
                 """, (staff_login_info["staffid"], size))
-                return (vehicleTypeId, spotId := cursor.fetchone()[0])
+                return (vehicleTypeId, spotId := cursor.fetchone()[0], price)
     
 def student_work():
     xoamanhinh()
@@ -303,7 +305,7 @@ def student_work():
     staff_work()    
 
 def student_in():
-    vehicleTypeId, spotId = chonloaixe()
+    vehicleTypeId, spotId, price = chonloaixe()
     if spotId:
         with psycopg2.connect(**conn_params) as conn:
             with conn.cursor() as cursor:
@@ -312,13 +314,18 @@ def student_in():
                     print("Nhập thông tin")
                     print("***DEMO QUÉT THẺ SINH VIÊN***")
                     mssv = input("MSSV: ")
-                    print("***DEMO CHO QUÉT HÌNH ẢNH XE VÀ BIỂN SỐ XE***")
-                    license_plate = input("Biển số xe: ")
-                    color = input("Màu xe: ")
-                    cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s)RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
-                    vehicleId = cursor.fetchone()[0]
-                    cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
-                    print(f"Bạn hãy để xe ở chỗ {spotId}!")
+                    cursor.execute("SELECT balance FROM student WHERE mssv = %s", (mssv,))
+                    balance = cursor.fetchone()[0];
+                    if balance >= price:
+                        print("***DEMO CHO QUÉT HÌNH ẢNH XE VÀ BIỂN SỐ XE***")
+                        license_plate = input("Biển số xe: ")
+                        color = input("Màu xe: ")
+                        cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s)RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
+                        vehicleId = cursor.fetchone()[0]
+                        cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
+                        print(f"Bạn hãy để xe ở chỗ {spotId}!")
+                    else: 
+                        print("\033[31mBạn không còn đủ tiền trong tài khoản!\033[0m")
                 except psycopg2.IntegrityError as e:
                     print("\033[31mSinh viên đã gửi xe rồi!\033[0m")
                 except psycopg2.Error as e:
@@ -580,9 +587,10 @@ def sql_query():
                 rows = cursor.fetchall()
                 if rows:
                     header = [des[0] for des in cursor.description]
+                    print(header)
                     print(tabulate(rows, headers=header, tablefmt="github"))
                 else: 
-                    print("-> " + cursor.statusmessage)
+                    print("-> " + cursor.statusmessage)    # In các trạng thái do database trả về sau mỗi query
                 conn.commit()
                 print("Thành công!")
             except psycopg2.Error as e:
@@ -601,7 +609,6 @@ def signup():
     print("2. Nhan vien")
     print("3. Admin")
 
-    
 
 def twentyfiveQueries():
     pass
@@ -617,4 +624,4 @@ def logout():
     reset_all_login_info()
     menu()
 
-menu();
+menu()
