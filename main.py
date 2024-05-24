@@ -284,7 +284,7 @@ def chonloaixe():       # hàm trả về vị trí để xe trong bãi
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor: 
                 print("Chọn loại xe: ")
-                cursor.execute("SELECT DISTINCT vehicletypeid, name, price, size FROM vehicle_type ORDER BY vehicletypeid ASC")
+                cursor.execute("SELECT DISTINCT vehicletypeid, name, size, price FROM vehicle_type ORDER BY vehicletypeid ASC")
                 # tạo ra dictionnary lưu thông tin các loại xe
                 rows = {row[0]: (row[1], row[2], row[3]) for row in cursor.fetchall()} 
                 for i, row in rows.items():
@@ -323,17 +323,21 @@ def student_in():
                         cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s)RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
                         vehicleId = cursor.fetchone()[0]
                         cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
+                        cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))
                         print(f"Bạn hãy để xe ở chỗ {spotId}!")
                     else: 
                         print("\033[31mBạn không còn đủ tiền trong tài khoản!\033[0m")
                 except psycopg2.IntegrityError as e:
-                    print("\033[31mSinh viên đã gửi xe rồi!\033[0m")
+                    print("\033[31mSinh viên đã gửi xe rồi!\033[0m ")
+                    conn.rollback()
                 except psycopg2.Error as e:
-                    print("Mã sinh viên không tồn tại!" + str(e))
+                    print("Mã sinh viên không tồn tại!")
+                    conn.rollback()
                 except:
                     print("Gửi xe thất bại do xảy ra lỗi hệ thống!")
+                    conn.rollback()
     else:
-        print("Bãi đỗ xe đã đầy!")
+        print("Bãi đỗ xe không còn vị trí cho xe này!")
     input("Nhấn Enter để tiếp tục...")
            
 def student_out():
