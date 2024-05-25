@@ -115,6 +115,18 @@ ________________________LOG_____________________________________________
 	(!) Nếu xóa vehicle thì không còn biển số lưu lại lịch sử trong park
 38. Trừ tiền khi sinh viên vào (done)
 39. kiểm tra còn đủ tiền không (done)
-40. (Q) kiểm tra có lấy đúng xe khi ra không
+40. (undone) kiểm tra có lấy đúng xe khi ra không
+student_out kiểm tra biển số xem lấy đúng xe ra không (undone)
 41. Doanh thu bãi đỗ xe (undone)
-42. Thêm rollback vào các except để khi xảy ra lỗi thì hoàn tác lại
+42. Thêm rollback vào các except để khi xảy ra lỗi thì hoàn tác lại (undone)
+
+-------------------24/5/2004---------------------------------------------
+43. Thêm cột lisence_plate trong park để lưu lại lịch sử ra vào của biển số (done)
+-> xứ lí tình huống có xe mất
+43. Vehicle lưu tất cả xe từng vào bãi, lúc vào kiểm tra xem đã tồn tại chưa
+	+ biển có số: kiểm tra biển
+	+ biển ko số: check tồn tại hay ko 1 người có 1 xe ko số
+-> lúc này mỗi người có thể có nhiều xe
+-> check sinh viên chỉ được để 1 xe
+
+45. Tại một thời điểm không có trùng biển số xe.
