@@ -2,12 +2,16 @@ import re
 import psycopg2
 from tabulate import tabulate
 import os
-from getpass import getpass 
+from getpass import getpass
+import random 
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
 
 # Thiết lập thông tin kết nối
 conn_params = {
     "host": "localhost",
-    "database": "carPark",
+    "database": "CarPark",
     "user": "postgres",
     "password": "123456"
 }
@@ -721,12 +725,95 @@ def transaction_manage():
 
 def signup():
     xoamanhinh()
-    print("Ban la: ")
-    print("1. Sinh vien")
-    print("2. Nhan vien")
-    print("3. Admin")
+    print("1. Sinh viên đăng kí gửi xe bằng thẻ sinh viên")
+    print("2. Đăng kí trở thành nhân viên nhà xe")
+    command(student_signup, staff_signup)
 
+def student_signup():
+    balance = 0
+    xoamanhinh()
+    fullname = input("Tên của bạn là: ")
+    mssv = input("mssv của bạn là: ")
+    while not(re.match(mssv_regex, mssv)):
+        xoamanhinh()
+        print("Mã số sinh viên không hợp lệ! Mã số sinh viên phải bắt đầu bằng 20 và có 8 chữ số.")
+        mssv = input("mssv của bạn là: ")
+    password = getpass("Mật khẩu là: ")
+    check_password = getpass("Nhập lại mật khẩu: ")
+    while password != check_password:
+        xoamanhinh()
+        print("Mật khẩu nhập vào không khớp. Vui lòng nhập lại")
+        password = getpass("Mật khẩu là: ")
+        check_password = getpass("Nhập lại mật khẩu: ")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("""INSERT INTO customer(customertype) VALUES(%s) RETURNING customerid""",('t',))
+                ID = cursor.fetchone()[0]
+                cursor.execute("INSERT INTO student VALUES(%s, %s, %s, %s, %s)", (ID,fullname,mssv,balance,password))
+                conn.commit()
+                print("Tài khoản của bạn đã đăng kí thành công!")
+                print("1. Đăng nhập")
+                print("2. Thoát")
+                command(student_login, exit)
+                return
+            except psycopg2.IntegrityError as e:
+                print("Tài khoản của bạn đã tồn tại.")
+                print("1. Thử lại")
+                print("2. Thoát")
+                command(student_signup, exit)
+                return
 
+datebirth_regex = r"^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/(19|20)\d\d$"
+email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+def staff_signup():
+    xoamanhinh()
+    fullname = input("Tên của bạn là: ")
+    datebirth = input("Ngày/tháng/năm sinh: ")
+    while not(re.match(datebirth_regex,datebirth)):
+        xoamanhinh()
+        print("Ngày tháng năm sinh bạn nhập không hợp lệ.\nHãy nhập theo mẫu dd/mm/yyyy")
+        datebirth = input("Ngày/tháng/năm sinh: ")
+    email = input("Email của bạn là: ")
+    while not(re.match(email_regex,email)):
+        xoamanhinh()
+        print("Email của bạn không hợp lệ. Hãy nhập lại")
+        email = input("Email của bạn là: ")
+    sender_email = "lamnhotvaicac@gmail.com"
+    sender_password = "hahahahahahaha"
+    subject = "Xác nhận email của bạn"
+    code = ''.join(random.choices('0123456789', k=4))
+    body = f"Mã xác thực của bạn là: {code}."
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = email
+    message['Subject'] = subject
+    message.attach(MIMEText(body, 'plain'))
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = message.as_string()
+        server.sendmail(sender_email, email, text)
+    except Exception as e:
+        print(f"Failed to send email. Error: {e}")
+        print("Không thể gửi email, vui lòng kiểm tra lại địa chỉ email của bạn.")
+        signup()
+        return
+    finally:
+        server.quit()
+    code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
+    if(code == code_input):
+        xoamanhinh()
+        print("Đăng kí thành công, hãy kiểm tra email của bạn thường xuyên.")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("""INSERT INTO application(fullname, datebirth, email) 
+                              VALUES(%s,%s,%s) RETURNING id""",(fullname,datebirth,email))
+                conn.commit()
+            except:
+                return
 def twentyfiveQueries():
     pass
 

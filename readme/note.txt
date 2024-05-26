@@ -128,7 +128,7 @@ student_out kiểm tra biển số xem lấy đúng xe ra không (done)
 	+ biển ko số: check tồn tại hay ko 1 người có 1 xe ko số
 -> lúc này mỗi người có thể có nhiều xe
 -> check sinh viên chỉ được để 1 xe
-
+(deo có 44 ? 2 cai 43 ??)
 45. Tại một thời điểm không có trùng biển số xe.
 -----------------25/5/2024---------------------------------------------
 46. (question) Thêm vehicle_process để tránh lặp xe
