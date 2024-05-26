@@ -130,3 +130,6 @@ student_out kiểm tra biển số xem lấy đúng xe ra không (undone)
 -> check sinh viên chỉ được để 1 xe
 
 45. Tại một thời điểm không có trùng biển số xe.
+-----------------25/5/2024---------------------------------------------
+46. (question) Thêm vehicle_process để tránh lặp xe
+-> (Q.No) Không cần phải tối ưu như vậy

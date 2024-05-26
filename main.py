@@ -315,19 +315,39 @@ def student_in():
                     print("***DEMO QUÉT THẺ SINH VIÊN***")
                     mssv = input("MSSV: ")
                     cursor.execute("SELECT balance FROM student WHERE mssv = %s", (mssv,))
-                    balance = cursor.fetchone()[0];
+                    balance = cursor.fetchone();
+                    if balance is None:
+                        print("Mã số sinh viên không tồn tại!")
+                        input("Nhấn Enter để tiếp tục...")
+                        staff_work()
+                        return
+                    balance = balance[0] # chuyển từ tuple sang int
                     if balance >= price:
                         print("***DEMO CHO QUÉT HÌNH ẢNH XE VÀ BIỂN SỐ XE***")
                         color = input("Màu xe: ")
+                        # kiểm tra xe này đẫ có trong danh sách xe từng đỗ ở bãi không?
+                        vehicleId = None
                         if vehicleTypeId != 2:
                             license_plate = input("Biển số xe: ")
-                            cursor.execute("SELECT * FROM now_vehicle WHERE license_plate = %s AND customerId = getCustomerId(%s)", (license_plate, mssv))
                             # Có thể 1 xe được nhiều sinh viên dùng chung
-                            if not cursor.fetchone():
-                                cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s)RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
+                            cursor.execute("SELECT vehicleId FROM now_vehicle WHERE license_plate = %s AND customerId = getCustomerId(%s)", (license_plate, mssv))
+                            vehicleId = cursor.fetchone()   # tuple chứa vehicleId
+                            if vehicleId is None:
+                                cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s) RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
+                                vehicleId = cursor.fetchone()
+
                         if vehicleTypeId == 2:  # Nếu là xe đạp
-                            cursor.execute("SELECT * FROM now_vehicle WHERE customerid = getCustomerId(%s)", (mssv,))
-                            if not cursor.fetchone():
+
+                            # nếu có xe đạp cùng màu rồi thì không cần thêm vào bảng now_vehicle
+                            cursor.execute("""
+                                            SELECT vehicleid 
+                                            FROM now_vehicle
+                                            WHERE customerid = getCustomerId(%s)
+                                            AND vehicletypeid = %s
+                                            AND color = %s
+                                           """, (mssv, vehicleTypeId, color))
+                            vehicleId = cursor.fetchone()
+                            if vehicleId is None:
                                 cursor.execute("""
                                 INSERT INTO 
                                     now_vehicle (customerId, 
@@ -335,13 +355,14 @@ def student_in():
                                                license_plate, 
                                                color) 
                                 VALUES (getCustomerId(%s), %s, null, %s) 
-                                RETURNING vehicleId", 
+                                RETURNING vehicleId""", 
                                 (mssv, vehicleTypeId, color)
-                                """)
-                        
-                        vehicleId = cursor.fetchone()[0]
-                        cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time, license_plate) VALUES (%s, %s, now(), %s)", (vehicleId, spotId, license_plate))
-                        cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))
+                                )
+                                vehicleId = cursor.fetchone()
+                        vehicleId = vehicleId[0]
+                        cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
+                        # trừ tiền trong tài khoản
+                        cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))     
                         print(f"Bạn hãy để xe ở chỗ {spotId}!")
                     else: 
                         print("\033[31mBạn không còn đủ tiền trong tài khoản!\033[0m")
@@ -349,14 +370,16 @@ def student_in():
                     print("\033[31mSinh viên đã gửi xe rồi!\033[0m ")
                     conn.rollback()
                 except psycopg2.Error as e:
-                    print("Mã sinh viên không tồn tại!" + str(e))
+                    print("Mỗi sinh viên chỉ được gửi một xe tại một thời điểm!")
                     conn.rollback()
-                except:
+                except Exception as e:
                     print("Gửi xe thất bại do xảy ra lỗi hệ thống!")
+                    print(e)
                     conn.rollback()
     else:
         print("Bãi đỗ xe không còn vị trí cho xe này!")
     input("Nhấn Enter để tiếp tục...")
+    staff_work()
            
 def student_out():
     print("Ra bãi")
@@ -364,7 +387,7 @@ def student_out():
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             # try:
-                cursor.execute("CALL vehicle_out(getVehicleId(%s))", (mssv,))
+                cursor.execute("CALL vehicle_out(%s)", (mssv,))
             # except Exception as e:
             #     print("Ra bãi thất bại do xảy ra lỗi hệ thống!" + str(e))
     input("Nhấn Enter để tiếp tục...")
