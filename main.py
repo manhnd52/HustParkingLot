@@ -447,7 +447,14 @@ def visitor_work():
     command(visitor_in, visitor_out)
 
 def visitor_in():
-    vehicleTypeId, spotId = chonloaixe()
+    xoamanhinh() 
+    vehicleTypeId, spotId, price = chonloaixe()
+    print("Tiền vé: {0} đồng".format(price))
+    paid = input("Trả tiền chưa (1/0)?")
+    if not paid:
+        input("Nhấn Enter để quay lại...")
+        staff_work()
+        return
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
@@ -469,7 +476,26 @@ def visitor_in():
     staff_work()
 
 def visitor_out():
-    pass
+    xoamanhinh()
+    input("***DEMO QUÉT VÉ***")
+    ticket = input("Nhập vé: ")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("SELECT vehicleid FROM now_vehicle WHERE customerid = getCustomerId(%s)", (ticket,))
+                vehicleId = cursor.fetchone()
+                if vehicleId is None:
+                    print("Vé không hợp lệ!")
+                    input("Nhấn Enter để tiếp tục...")
+                    staff_work()
+                    return
+                vehicleId = vehicleId[0]
+                cursor.execute("CALL vehicle_out(%s)", (ticket,))
+                print("\033[1;32mRa bãi thành công!\033[0m")
+            except:
+                print("Ra bãi thất bại do xảy ra lỗi hệ thống!")
+    input("Nhấn Enter để tiếp tục...")
+    staff_work()
 
 def staff_info():
     pass

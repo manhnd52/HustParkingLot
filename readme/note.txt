@@ -108,15 +108,15 @@ ________________________LOG_____________________________________________
 36. (done) Update hàm getCustomerId(ticketid) 
 
 --------------------19/5/2024--------------------------------------------
-37. Student_out (doing)
+37. Student_out (done)
 	+ thủ tục vehicle_out(vehicle_id) (done)
 	+ getVehicleId(string): nếu input string 8 kí tự tìm mssv, nếu nhiều hơn tìm UUID, ko tìm thấy raise exception (done)
-	+ khi mà update exit_time thì đồng thời xóa vehicle (undone)
+	+ khi mà update exit_time thì đồng thời chuyển parking_spot.occuppied = FALSE (done)
 	(!) Nếu xóa vehicle thì không còn biển số lưu lại lịch sử trong park
 38. Trừ tiền khi sinh viên vào (done)
 39. kiểm tra còn đủ tiền không (done)
-40. (undone) kiểm tra có lấy đúng xe khi ra không
-student_out kiểm tra biển số xem lấy đúng xe ra không (undone)
+40. (done) kiểm tra có lấy đúng xe khi ra không
+student_out kiểm tra biển số xem lấy đúng xe ra không (done)
 41. Doanh thu bãi đỗ xe (undone)
 42. Thêm rollback vào các except để khi xảy ra lỗi thì hoàn tác lại (undone)
 
