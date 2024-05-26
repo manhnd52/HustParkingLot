@@ -382,14 +382,61 @@ def student_in():
     staff_work()
            
 def student_out():
+    xoamanhinh()
     print("Ra bãi")
     mssv = input("Mã số sinh viên: ")
     with psycopg2.connect(**conn_params) as conn:
+            with conn.cursor() as cursor:
+                cursor.execute("""
+                               SELECT license_plate, color, vehicleTypeId
+                               FROM now_vehicle JOIN park USING (vehicleid)
+                               WHERE customerId = getCustomerId(%s) 
+                               AND exit_time IS NULL""",  (mssv,))
+                info = cursor.fetchone()
+                if info is None:
+                    print("\033[91mSinh viên không có xe trong bãi!\033[0m")
+                    input("Nhấn Enter để tiếp tục...")
+                    staff_work()
+                    return
+                else:
+                    license_plate, color, vehicleTypeId = info
+    print("***DEMO CHO QUÉT THÔNG TIN XE***")
+    print("1. Xe máy")
+    print("2. Xe đạp")
+    print("3. Ô tô")
+    input_vehicleTypeId = int(input("Loại xe: "))
+    if input_vehicleTypeId != vehicleTypeId:
+        print("\033[91mĐây không phải là xe của bạn!\033[0m")
+        input("Nhấn Enter để tiếp tục...")
+        staff_work()
+        return
+    # kiểm tra có lấy đúng xe không
+    if input_vehicleTypeId != 2:
+        input_lisence_plate = input("Biển số xe: ")
+        if license_plate != input_lisence_plate:
+            print("\033[91mĐây không phải là xe của bạn!\033[0m")
+            input("Nhấn Enter để tiếp tục...")
+            staff_work()
+            return
+    else: 
+        print("[", end="")
+        for colorItem in color_translation.keys():
+            print(colorItem, end=", ")
+        print("...]")
+        input_color = input("Màu xe: ")
+        if color != input_color:
+            print("\033[91mĐây không phải là xe của bạn!\033[0m")
+            input("Nhấn Enter để tiếp tục...")
+            staff_work()
+            return
+
+    with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
-            # try:
+            try:
                 cursor.execute("CALL vehicle_out(%s)", (mssv,))
-            # except Exception as e:
-            #     print("Ra bãi thất bại do xảy ra lỗi hệ thống!" + str(e))
+                print("\033[92mRa bãi thành công!\033[0m")
+            except:
+                print("Ra bãi thất bại do xảy ra lỗi hệ thống!")
     input("Nhấn Enter để tiếp tục...")
     staff_work()
     
