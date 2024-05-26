@@ -1,1 +1,2 @@
-                        cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))
+
+                print("1. Đăng nhập")
