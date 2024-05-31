@@ -749,9 +749,9 @@ def modifyStaff():
                 conn.commit()
             except:
                 print("Error")
-            print("1. Sửa")
-            print("2. Thoát")
-            command(modifyStaff,staff_manage)
+    print("1. Sửa")
+    print("2. Thoát")
+    command(modifyStaff,staff_manage)
 
 def reviewStaff():
     xoamanhinh()
@@ -789,7 +789,7 @@ def reviewStaff():
                     print("Không có đơn đăng kí nào cả.")
             except Exception as e:
                 print(f"Đã xảy ra lỗi: {e}")
-    k = input()
+    input()
     staff_manage()
 
 def printCV(user_email):
@@ -1027,12 +1027,12 @@ def staff_signup():
         print("Ngày tháng năm sinh bạn nhập không hợp lệ.\nHãy nhập theo mẫu dd/mm/yyyy")
         datebirth = input("Ngày/tháng/năm sinh: ")
     email = input("Email của bạn là: ")
-    while not(re.match(email_regex, email)):
+    while not(re.match(email_regex,email)):
         xoamanhinh()
         print("Email của bạn không hợp lệ. Hãy nhập lại")
         email = input("Email của bạn là: ")
-    sender_email = "manha1k48@gmail.com"
-    sender_password = "gvva dbrf ducs syhj"
+    sender_email = host_email
+    sender_password = host_password
     subject = "Xác nhận email của bạn"
     code = ''.join(random.choices('0123456789', k=4))
     body = f"Mã xác thực của bạn là: {code}."
@@ -1055,19 +1055,30 @@ def staff_signup():
     finally:
         server.quit()
     code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
+    check = 3
+    if(code == code_input):
+        xoamanhinh()
+    else: 
+        while code != code_input and check != 0:
+            xoamanhinh()
+            print(f"Nhập sai OTP, bạn còn {check} lần thử.")
+            code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
+            check -= 1
+        else: 
+            xoamanhinh()
+            print("Xác nhận OTP thất bại")
+            print("1. Thử lại")
+            print("2. Thoát")
+            command(staff_signup,menu)
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
                 cursor.execute("""INSERT INTO application(fullname, datebirth, email) 
-                              VALUES(%s,%s,%s)""", (fullname, datebirth,email))
-                if code == code_input:
-                    xoamanhinh()
-                    print("Đăng kí thành công, hãy kiểm tra email của bạn thường xuyên.")
-                    conn.commit()
-                else: 
-                    conn.rollback()
-            except Exception:
-                print("Xảy ra lỗi hệ thống khi đăng kí!")
+                              VALUES(%s,%s,%s) RETURNING id""",(fullname,datebirth,email))
+                print("Đăng kí thành công, vui lòng nộp CV của bạn cho chúng tôi và kiểm tra email thường xuyên!")
+                conn.commit()
+            except:
+                print("Lỗi không thể đăng kí, vui lòng thử lại sau")
     input("Nhấn Enter để quay lại...")
     signup()
 
