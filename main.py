@@ -9,9 +9,11 @@ from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
 
 # Thiết lập thông tin kết nối
+DATABASE_URL = "postgresql://aefxhjyk:mvcwwnkrihotyjymxixe@alpha.india.mkdb.sh:5432/aqatqqkl"
+
 conn_params = {
     "host": "localhost",
-    "database": "CarPark",
+    "dbname": "carPark",
     "user": "postgres",
     "password": "123456"
 }
@@ -305,7 +307,8 @@ def student_work():
     xoamanhinh()
     print("1. Vào bãi")
     print("2. Ra bãi")
-    command(student_in, student_out)
+    print("3. Quay lại")
+    command(student_in, student_out, staff_work)
     staff_work()    
 
 def student_in():
@@ -334,7 +337,7 @@ def student_in():
                         if vehicleTypeId != 2:
                             license_plate = input("Biển số xe: ")
                             # Có thể 1 xe được nhiều sinh viên dùng chung
-                            cursor.execute("SELECT vehicleId FROM now_vehicle WHERE license_plate = %s AND customerId = getCustomerId(%s)", (license_plate, mssv))
+                            cursor.execute("SELECT vehicleId FROM now_vehicle WHERE license_plate = %s AND customerId = getCustomerId(%s) AND vehicletypeid = %s", (license_plate, mssv, vehicleTypeId))
                             vehicleId = cursor.fetchone()   # tuple chứa vehicleId
                             if vehicleId is None:
                                 cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s) RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
@@ -364,7 +367,7 @@ def student_in():
                                 )
                                 vehicleId = cursor.fetchone()
                         vehicleId = vehicleId[0]
-                        cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
+                        cursor.execute("INSERT INTO park (vehicleid, parkingspotid) VALUES (%s, %s)", (vehicleId, spotId))
                         # trừ tiền trong tài khoản
                         cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))     
                         print(f"Bạn hãy để xe ở chỗ {spotId}!")
@@ -374,7 +377,7 @@ def student_in():
                     print("\033[31mSinh viên đã gửi xe rồi!\033[0m ")
                     conn.rollback()
                 except psycopg2.Error as e:
-                    print("Mỗi sinh viên chỉ được gửi một xe tại một thời điểm!")
+                    print("\033[31mMỗi sinh viên chỉ được gửi một xe tại một thời điểm!\033[0m")
                     conn.rollback()
                 except Exception as e:
                     print("Gửi xe thất bại do xảy ra lỗi hệ thống!")
@@ -454,7 +457,7 @@ def visitor_in():
     xoamanhinh() 
     vehicleTypeId, spotId, price = chonloaixe()
     print("Tiền vé: {0} đồng".format(price))
-    paid = input("Trả tiền chưa (1/0)?")
+    paid = int(input("Khách hàng đã trả tiền (1/0)? "))
     if not paid:
         input("Nhấn Enter để quay lại...")
         staff_work()
@@ -471,7 +474,7 @@ def visitor_in():
                 color = input("Màu xe: ")
                 cursor.execute("INSERT INTO now_vehicle (vehicletypeid, license_plate, color, customerid) VALUES (%s, %s, %s, getCustomerId(%s)) RETURNING vehicleId", (vehicleTypeId, license_plate, color, ticket))
                 vehicleId = cursor.fetchone()[0]
-                cursor.execute("INSERT INTO park (vehicleid, parkingspotid, entry_time) VALUES (%s, %s, now())", (vehicleId, spotId))
+                cursor.execute("INSERT INTO park (vehicleid, parkingspotid) VALUES (%s, %s)", (vehicleId, spotId))
                 print("Vé của bạn là " + str(ticket) + ". Hãy giữ vé để ra bãi!")
                 print(f"Bạn hãy để xe ở chỗ {spotId}!")
             except psycopg2.errors as e:
@@ -481,23 +484,25 @@ def visitor_in():
 
 def visitor_out():
     xoamanhinh()
-    input("***DEMO QUÉT VÉ***")
+    print("***DEMO QUÉT VÉ***")
     ticket = input("Nhập vé: ")
+    input_license_plate = input("Biển số xe: ")
+    input_color = input("Màu xe: ")
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
-                cursor.execute("SELECT vehicleid FROM now_vehicle WHERE customerid = getCustomerId(%s)", (ticket,))
-                vehicleId = cursor.fetchone()
-                if vehicleId is None:
-                    print("Vé không hợp lệ!")
+                cursor.execute("SELECT license_plate, color, vehicleTypeId FROM now_vehicle WHERE customerId = getCustomerId(%s)", (ticket,))
+                info = cursor.fetchone()
+                license_plate, color, vehicleTypeId = info
+                if license_plate != input_license_plate or color != input_color:
+                    print("\033[91mĐây không phải là xe của bạn!\033[0m")
                     input("Nhấn Enter để tiếp tục...")
                     staff_work()
                     return
-                vehicleId = vehicleId[0]
                 cursor.execute("CALL vehicle_out(%s)", (ticket,))
                 print("\033[1;32mRa bãi thành công!\033[0m")
             except:
-                print("Ra bãi thất bại do xảy ra lỗi hệ thống!")
+                print("Vé không hợp lệ!")
     input("Nhấn Enter để tiếp tục...")
     staff_work()
 
@@ -775,12 +780,12 @@ def staff_signup():
         print("Ngày tháng năm sinh bạn nhập không hợp lệ.\nHãy nhập theo mẫu dd/mm/yyyy")
         datebirth = input("Ngày/tháng/năm sinh: ")
     email = input("Email của bạn là: ")
-    while not(re.match(email_regex,email)):
+    while not(re.match(email_regex, email)):
         xoamanhinh()
         print("Email của bạn không hợp lệ. Hãy nhập lại")
         email = input("Email của bạn là: ")
-    sender_email = "lamnhotvaicac@gmail.com"
-    sender_password = "hahahahahahaha"
+    sender_email = "manha1k48@gmail.com"
+    sender_password = "gvva dbrf ducs syhj"
     subject = "Xác nhận email của bạn"
     code = ''.join(random.choices('0123456789', k=4))
     body = f"Mã xác thực của bạn là: {code}."
@@ -803,17 +808,23 @@ def staff_signup():
     finally:
         server.quit()
     code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
-    if(code == code_input):
-        xoamanhinh()
-        print("Đăng kí thành công, hãy kiểm tra email của bạn thường xuyên.")
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
                 cursor.execute("""INSERT INTO application(fullname, datebirth, email) 
-                              VALUES(%s,%s,%s) RETURNING id""",(fullname,datebirth,email))
-                conn.commit()
-            except:
-                return
+                              VALUES(%s,%s,%s)""", (fullname, datebirth,email))
+                if code == code_input:
+                    xoamanhinh()
+                    print("Đăng kí thành công, hãy kiểm tra email của bạn thường xuyên.")
+                    conn.commit()
+                else: 
+                    conn.rollback()
+            except Exception:
+                print("Xảy ra lỗi hệ thống khi đăng kí!")
+    input("Nhấn Enter để quay lại...")
+    signup()
+
+
 def twentyfiveQueries():
     pass
 
