@@ -6,19 +6,17 @@ from getpass import getpass
 import random 
 from datetime import datetime, timedelta
 import smtplib
+import imaplib
+import email
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+from email.header import decode_header
+from account import conn_params, host_email, host_password
 import matplotlib.pyplot as plt
+
 
 # Thiết lập thông tin kết nối
 DATABASE_URL = "postgresql://aefxhjyk:mvcwwnkrihotyjymxixe@alpha.india.mkdb.sh:5432/aqatqqkl"
-
-conn_params = {
-    "host": "localhost",
-    "dbname": "carPark",
-    "user": "postgres",
-    "password": "123456"
-}
 
 # Từ điển màu sắc
 color_translation = {
@@ -650,12 +648,41 @@ def reviewStudent():
 def staff_manage():
     xoamanhinh()
     print("Quản lý nhân viên")
-    print("1. Thêm")
-    print("2. Xóa")
-    print("3. Sửa")
-    print("4. Duyệt")
-    print("5. Quay lại")
-    command(addStaff, deleteStaff, modifyStaff, reviewStaff, success_admin_login)
+    print("1. Danh sách nhân viên")
+    print("2. Thêm")
+    print("3. Xóa")
+    print("4. Sửa")
+    print("5. Duyệt CV")
+    print("6. Quay lại")
+    command(print_staff, addStaff, deleteStaff, modifyStaff, reviewStaff, success_admin_login)
+
+def print_staff():
+    xoamanhinh()
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT * FROM staff")
+                rows = cursor.fetchall()
+                if rows:
+                    print("Danh sách nhân viên: ")
+                    header = [des[0] for des in cursor.description]
+                    stop_loop = False
+                    while not stop_loop:
+                        for i in range(0, len(rows),5):
+                            print(tabulate(rows[i:i+5], headers=header, tablefmt="github"))
+                            try:
+                                input("Nhấn Enter để xem tiếp, hoặc nhấn Ctrl + C để dừng...\n")
+                            except KeyboardInterrupt:
+                                stop_loop = True
+                                break
+                        else:
+                            break  
+                else:
+                    print("Không có nhân viên nào cả.")
+            except Exception as e:
+                print(f"Đã xảy ra lỗi khi thực hiện truy vấn: {e}")
+    staff_manage()
+        
 
 def addStaff():
     xoamanhinh()
@@ -690,12 +717,233 @@ def addStaff():
     command(addStaff, staff_manage)
 
 def deleteStaff():
-    pass
+    xoamanhinh()
+    print("Xóa nhân viên")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                id = input("Nhập Staff ID: ")
+                check = int(input("Bạn chắc chắn muốn xóa (xóa(1)/thôii(0)): "))
+                if check:
+                    cursor.execute("DELETE FROM staff WHERE staffid = %s",(id))
+                    conn.commit()
+                    print("Xóa thành công.")
+                else:
+                    input("Nhấn phím Enter để quay lại...")
+                    staff_manage()
+            except Exception as e:
+                print(f"Đã xảy ra lỗi: {e}")
+    print("1. Xóa nhân viên khác")
+    print("2. Quay lại")
+    command(deleteStaff, staff_manage)
 
 def modifyStaff():
-    pass
+    xoamanhinh()
+    print("Sửa.")
+    print("Command template: (command)-(ID)-(nội dung)")
+    str = input("Nhập: ")
+    str = str.split('-')
+    cmd = str[0]
+    id = str[1]
+    content = str[2]
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor:
+            try:
+                if cmd == "ModifyName":
+                    cursor.execute("UPDATE staff SET fullname = %s WHERE staffid = %s",(content,id))
+                    print("Đổi tên thành công.")
+                elif cmd == "ModifyPassword":
+                    cursor.execute("UPDATE staff SET password = %s WHERE staffid = %s",(content,id))
+                    print("Đổi mật khẩu thành công.")
+                elif cmd == "ModifyParkinglot":
+                    cursor.execute("UPDATE staff SET parkinglot = %s WHERE staffid = %s",(content,id))
+                    print("Thay đổi nơi làm việc thành công.")
+                conn.commit()
+            except:
+                print("Error")
+    print("1. Sửa")
+    print("2. Thoát")
+    command(modifyStaff,staff_manage)
 
 def reviewStaff():
+    xoamanhinh()
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("SELECT fullname, email FROM application")
+                rows = cursor.fetchall()
+                if rows:
+                    header = [des[0] for des in cursor.description]
+                    stop_loop = False
+                    while not stop_loop:
+                        for i in range(0, len(rows)):
+                            xoamanhinh()
+                            print("Duyệt đăng kí: ")
+                            print(f"Đơn thứ {i + 1}")
+                            print(tabulate(rows[i:i + 1], headers=header, tablefmt="github"))
+                            print("CV của ứng viên: ")
+                            email = rows[i][1]
+                            printCV(email)
+                            print("1. Chấp nhận")
+                            print("2. Từ chối")
+                            print("3. Quyết định sau...")
+                            func1 = lambda email=email, row_value=rows[i][0]: staff_accept(email, row_value)
+                            func2 = lambda email=email, row_value=rows[i][0]: staff_deny(email, row_value)
+                            command(func1,func2,func3)    
+                            try:
+                                input("Nhấn Enter để xem tiếp, hoặc nhấn Ctrl + C để dừng...\n")
+                            except KeyboardInterrupt:
+                                stop_loop = True
+                                break
+                        else:
+                            break  
+                else:
+                    print("Không có đơn đăng kí nào cả.")
+            except Exception as e:
+                print(f"Đã xảy ra lỗi: {e}")
+    input()
+    staff_manage()
+
+def printCV(user_email):
+    # Thông tin kết nối đến server email
+    username = host_email
+    password = host_password
+    imap_url = 'imap.gmail.com'
+
+    # Địa chỉ email mà bạn muốn lọc và lấy nội dung
+    target_email = user_email
+
+    # Kết nối đến server IMAP
+    mail = imaplib.IMAP4_SSL(imap_url)
+    mail.login(username, password)
+    mail.select('inbox')
+
+    # Tìm kiếm email từ địa chỉ email cụ thể
+    status, messages = mail.search(None, f'FROM "{target_email}"')
+
+    # Lấy danh sách email IDs
+    email_ids = messages[0].split()
+
+    if not email_ids:
+        print("Không có email nào từ địa chỉ này.")
+    else:
+        for email_id in email_ids:
+            # Lấy email theo ID
+            status, msg_data = mail.fetch(email_id, '(RFC822)')
+            for response_part in msg_data:
+                if isinstance(response_part, tuple):
+                    msg = email.message_from_bytes(response_part[1])
+                    subject, encoding = decode_header(msg['Subject'])[0]
+                    if isinstance(subject, bytes):
+                        subject = subject.decode(encoding if encoding else 'utf-8')
+                    from_ = msg.get('From')
+                    date = msg.get('Date')
+                    
+                    # Kiểm tra nếu email có nhiều phần
+                    if msg.is_multipart():
+                        for part in msg.walk():
+                            content_type = part.get_content_type()
+                            content_disposition = str(part.get('Content-Disposition'))
+                            if 'attachment' not in content_disposition:
+                                # Lấy phần chính của email
+                                if content_type == 'text/plain':
+                                    body = part.get_payload(decode=True).decode()
+                                    print(f'Subject: {subject}')
+                                    print(f'From: {from_}')
+                                    print(f'Date: {date}')
+                                    print(f'Body:\n{body}\n{"-"*50}\n')
+                    else:
+                        # Email không có nhiều phần
+                        content_type = msg.get_content_type()
+                        body = msg.get_payload(decode=True).decode()
+                        print(f'Subject: {subject}')
+                        print(f'From: {from_}')
+                        print(f'Date: {date}')
+                        print(f'Body:\n{body}\n{"-"*50}\n')
+
+def staff_accept(user_email,name):
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor:
+            try:
+                while True:
+                    print("Chọn bãi đỗ xe:")
+                    cursor.execute("SELECT name FROM parking_lot")
+                    parkinglots = cursor.fetchall()
+                    for i, lot in enumerate(parkinglots):
+                        print(f"{i + 1}. {lot[0]}")
+                    parkinglot = input("Tên bãi đỗ xe: ")
+                    cursor.execute("SELECT parkinglotid FROM parking_lot WHERE name = %s", (parkinglot,))
+                    parkinglot = cursor.fetchone()
+                    if parkinglot:
+                        parkinglot = parkinglot[0]
+                        break
+                    else: 
+                        print("Bãi đỗ xe không tồn tại!")
+                cursor.execute("INSERT INTO staff(fullname, parkinglotid) VALUES(%s, %s) RETURNING staffid", (name, parkinglot))
+                staffid = cursor.fetchone()[0]
+            except Exception as e:
+                print(f"Đã xảy ra lỗi khi thực hiện truy vấn: {e}")
+            try:
+                cursor.execute("DELETE FROM application WHERE fullname = %s AND email = %s",(name,user_email))
+            except Exception as e:
+                print(f"Đã xảy ra lỗi khi thực hiện truy vấn: {e}")
+    sender_email = host_email
+    sender_password = host_password
+    subject = "Thư mời nhận việc"
+    body = f""" Bạn đã được nhận vào làm.
+                Tài khoản của bạn:
+                    staff_id: {staffid}
+                    password: 12345678
+                Hãy đổi mật khẩu tài khoản của bạn.
+                Về các chế độ khác đến văn phòng của chúng tôi tại D35-102 để biết chi tiết.
+            """
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = user_email
+    message['Subject'] = subject
+    message.attach(MIMEText(body, 'plain'))
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = message.as_string()
+        server.sendmail(sender_email, user_email, text)
+    except Exception as e:
+        print(f"Failed to send email. Error: {e}")
+        print("Không thể gửi email, vui lòng kiểm tra lại địa chỉ email của bạn.")
+        return
+    
+def staff_deny(user_email,name):
+    sender_email = host_email
+    sender_password = host_password
+    subject = "Thư cảm ơn"
+    body = f""" Cảm ơn bạn đã quan tâm đến công việc này nhưng bạn chưa phải ứng viên phù hợp mà chúng tôi tìm kiếm.
+                Mong được sự quan tâm đăng kí của bạn trong những lần sau.
+            """
+    message = MIMEMultipart()
+    message['From'] = sender_email
+    message['To'] = user_email
+    message['Subject'] = subject
+    message.attach(MIMEText(body, 'plain'))
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("DELETE FROM application WHERE fullname = %s AND email = %s",(name,user_email))
+            except Exception as e:
+                print(f"Đã xảy ra lỗi khi thực hiện truy vấn: {e}")
+    try:
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(sender_email, sender_password)
+        text = message.as_string()
+        server.sendmail(sender_email, user_email, text)
+    except Exception as e:
+        print(f"Failed to send email. Error: {e}")
+        print("Không thể gửi email, vui lòng kiểm tra lại địa chỉ email của bạn.")
+        signup()
+        return
+
+def func3():
     pass
 
 def parkLot_manage():
@@ -939,12 +1187,12 @@ def staff_signup():
         print("Ngày tháng năm sinh bạn nhập không hợp lệ.\nHãy nhập theo mẫu dd/mm/yyyy")
         datebirth = input("Ngày/tháng/năm sinh: ")
     email = input("Email của bạn là: ")
-    while not(re.match(email_regex, email)):
+    while not(re.match(email_regex,email)):
         xoamanhinh()
         print("Email của bạn không hợp lệ. Hãy nhập lại")
         email = input("Email của bạn là: ")
-    sender_email = "manha1k48@gmail.com"
-    sender_password = "gvva dbrf ducs syhj"
+    sender_email = host_email
+    sender_password = host_password
     subject = "Xác nhận email của bạn"
     code = ''.join(random.choices('0123456789', k=4))
     body = f"Mã xác thực của bạn là: {code}."
@@ -967,19 +1215,30 @@ def staff_signup():
     finally:
         server.quit()
     code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
+    check = 3
+    if(code == code_input):
+        xoamanhinh()
+    else: 
+        while code != code_input and check != 0:
+            xoamanhinh()
+            print(f"Nhập sai OTP, bạn còn {check} lần thử.")
+            code_input = input("Nhập mã xác thực được gửi về email của bạn: ")
+            check -= 1
+        else: 
+            xoamanhinh()
+            print("Xác nhận OTP thất bại")
+            print("1. Thử lại")
+            print("2. Thoát")
+            command(staff_signup,menu)
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
                 cursor.execute("""INSERT INTO application(fullname, datebirth, email) 
-                              VALUES(%s,%s,%s)""", (fullname, datebirth,email))
-                if code == code_input:
-                    xoamanhinh()
-                    print("Đăng kí thành công, hãy kiểm tra email của bạn thường xuyên.")
-                    conn.commit()
-                else: 
-                    conn.rollback()
-            except Exception:
-                print("Xảy ra lỗi hệ thống khi đăng kí!")
+                              VALUES(%s,%s,%s) RETURNING id""",(fullname,datebirth,email))
+                print("Đăng kí thành công, vui lòng nộp CV của bạn cho chúng tôi và kiểm tra email thường xuyên!")
+                conn.commit()
+            except:
+                print("Lỗi không thể đăng kí, vui lòng thử lại sau")
     input("Nhấn Enter để quay lại...")
     signup()
 
