@@ -4,9 +4,11 @@ from tabulate import tabulate
 import os
 from getpass import getpass
 import random 
+from datetime import datetime, timedelta
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
+import matplotlib.pyplot as plt
 
 # Thiết lập thông tin kết nối
 DATABASE_URL = "postgresql://aefxhjyk:mvcwwnkrihotyjymxixe@alpha.india.mkdb.sh:5432/aqatqqkl"
@@ -35,6 +37,15 @@ color_translation = {
 }
 
 mssv_regex = r"^20\d{6}$" # Mã số sinh viên phải bắt đầu bằng 20 và có 8 chữ số (regular expression)
+date_regex = r"^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/(19|20)\d\d$"
+email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+month_regex = r"^(0[1-9]|1[0-2])/(19|20)\d\d$"
+year_regex = r"^(19|20)\d\d$"
+
+
+# Các hàm hỗ trợ
+def convert_date(date):
+    return datetime.strptime(date, "%d/%m/%Y").strftime("%Y-%m-%d")
 
 # staff_login_info lưu thông tin đăng nhập global dùng cho các hàm liên quan
 staff_login_info = {
@@ -141,12 +152,11 @@ def transactionHistory():
         with conn.cursor() as cursor :  
             cursor.execute("""
             SELECT  transactionid "Transaction ID",
-                    mssv "MSSV",
                     amount "Số tiền (đồng)",
                     time "Thời gian", 
                     CASE WHEN tranaction_type THEN 'Nạp tiền' ELSE 'Gửi xe' END "Loại giao dịch"
             FROM    transaction
-            WHERE   mssv = %s 
+            WHERE   customerId = getCustomerId(%s)
             """, (student_login_info["mssv"],))
             rows = cursor.fetchall();
             if rows:
@@ -202,8 +212,7 @@ def vehiclePosition():
                         NATURAL JOIN PARKING_LOT
                         NATURAL JOIN park 
                         NATURAL JOIN now_vehicle
-                        NATURAL JOIN student
-                WHERE   mssv = %s
+                WHERE   customerId = getCustomerId(%s) and exit_time IS NULL
             """, (student_login_info["mssv"],))
             row = cursor.fetchone(); 
             if row:
@@ -331,7 +340,9 @@ def student_in():
                     balance = balance[0] # chuyển từ tuple sang int
                     if balance >= price:
                         print("***DEMO CHO QUÉT HÌNH ẢNH XE VÀ BIỂN SỐ XE***")
-                        color = input("Màu xe: ")
+                        if color := input("Màu xe") not in color_translation.keys():
+                            print("Màu xe không hợp lệ!")
+                            input("Nhấn Enter để tiếp tục...")
                         # kiểm tra xe này đẫ có trong danh sách xe từng đỗ ở bãi không?
                         vehicleId = None
                         if vehicleTypeId != 2:
@@ -340,7 +351,7 @@ def student_in():
                             cursor.execute("SELECT vehicleId FROM now_vehicle WHERE license_plate = %s AND customerId = getCustomerId(%s) AND vehicletypeid = %s", (license_plate, mssv, vehicleTypeId))
                             vehicleId = cursor.fetchone()   # tuple chứa vehicleId
                             if vehicleId is None:
-                                cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s), %s, %s, %s) RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
+                                cursor.execute("INSERT INTO now_vehicle (customerId, vehicletypeid, license_plate, color) VALUES (getCustomerId(%s)1, %s, %s, %s) RETURNING vehicleId", (mssv, vehicleTypeId, license_plate, color))
                                 vehicleId = cursor.fetchone()
 
                         if vehicleTypeId == 2:  # Nếu là xe đạp
@@ -370,7 +381,7 @@ def student_in():
                         cursor.execute("INSERT INTO park (vehicleid, parkingspotid) VALUES (%s, %s)", (vehicleId, spotId))
                         # trừ tiền trong tài khoản
                         cursor.execute("UPDATE student SET balance = balance - %s WHERE mssv = %s", (price, mssv))     
-                        print(f"Bạn hãy để xe ở chỗ {spotId}!")
+                        print("\033[32mBạn hãy để xe ở chỗ {}\033[0m".format(spotId))
                     else: 
                         print("\033[31mBạn không còn đủ tiền trong tài khoản!\033[0m")
                 except psycopg2.IntegrityError as e:
@@ -573,9 +584,9 @@ def success_admin_login():
     print("2. Quản lý nhân viên")
     print("3. Quản lý bãi đỗ xe")
     print("4. Quản lý cơ sở dữ liệu")
-    print("5. Quản lý giao dịch")
+    print("5. Quản lý doanh thu")
     print("6. Log out")
-    command(student_manage, staff_manage, parkLot_manage, database_manage, transaction_manage, logout)
+    command(student_manage, staff_manage, parkLot_manage, database_manage, revenue_manage, logout)
 
 def student_manage():
     xoamanhinh()
@@ -725,8 +736,157 @@ def sql_query():
     print("2. Quay lại")
     command(sql_query, database_manage)
 
-def transaction_manage():
-    pass
+def revenue_manage():
+    xoamanhinh()
+    print("Quản lý doanh thu")
+    print("1. Thống kê doanh thu theo ngày")
+    print("2. Thống kê doanh thu theo tháng")
+    print("3. Thống kê doanh thu theo năm")
+    print("4. Quay lại")
+    command(revenue_day, revenue_month, revenue_year, success_admin_login)
+
+def revenue_day():
+    xoamanhinh()
+    print("Thống kê doanh thu theo ngày")
+    # default date is today
+    print("Mặc định là ngày hôm nay, có thể nhập nhiều ngày khác nhau")
+    dates = input("Nhập ngày (yyyy/mm/dd): ")
+    if dates == "thisweek":
+        dates = [datetime.now() - timedelta(days=i) for i in range(7)]
+        dates = [date.strftime("%Y-%m-%d") for date in dates]
+    elif dates == "thismonth":
+        dates = [datetime.now() - timedelta(days=i) for i in range(30)]
+        dates = [date.strftime("%Y-%m-%d") for date in dates]
+    else: 
+        dates = dates.split(",")  
+        # Chuyển ngày về định dạng yyyy/mm/dd cho phù hơp với database1
+        dates = [convert_date(date.strip()) for date in dates if re.match(date_regex, date.strip())] 
+        if len(dates) == 0:
+            dates = [datetime.now().strftime("%Y-%m-%d")]
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor: 
+            try:
+                rows = []
+                for i in range(len(dates)):
+                    cursor.execute("""
+                    SELECT  
+                            time::date "Ngày",
+                            SUM(amount) "Doanh thu",
+                            COUNT(transactionid) "Số lượng giao dịch"
+                    FROM    transaction
+                    WHERE   tranaction_type = false
+                    GROUP BY time::date HAVING time::date = %s;
+                    """, (dates[i],))
+                    if i == 0:
+                        header = [des[0] for des in cursor.description]
+                    theday = cursor.fetchall()
+                    if theday:
+                        rows.extend(theday)
+                    else:
+                        rows.extend([(dates[i], 0, 0)])
+                print(tabulate(rows, headers=header, tablefmt="github"))
+                graph = input("Xuất đồ thị không? (1/0): ")
+                if graph == "1":
+                    if len(rows) > 3:
+                        dates_plot = [row[0] for row in rows]
+                        revenue_plot = [row[1] for row in rows]
+                        plt.figure(figsize=(10, 5))
+                        plt.plot(dates_plot, revenue_plot, marker='o')
+                        plt.xlabel('Ngày')
+                        plt.ylabel('Doanh thu')
+                        plt.title('Doanh thu theo ngày')
+                        plt.xticks(rotation=45)
+                        plt.tight_layout()
+                        plt.savefig(r"revenue\revenue_created_at_{}.png".format(datetime.now().strftime("%d-%m-%Y")))
+                        plt.show()
+            except psycopg2.Error as e:
+                print("Error: ", e)
+    print("1. Thử lại")
+    print("2. Quay lại")
+    command(revenue_day, revenue_manage)
+1
+def revenue_month():
+    xoamanhinh()
+    print("Thống kê doanh thu theo tháng")
+    # default month is this month
+    print("Mặc định là tháng hiện tại, có thể nhập nhiều tháng khác nhau")
+    months = input("Nhập tháng (mm/yyyy): ")
+    if months == "thisyear":
+        months = [{'month': i + 1, 
+                   'year': datetime.now().year} for i in range(datetime.now().month)]
+    else:
+        months = months.split(",")
+        months = [month.strip().split("/") for month in months]
+        months = [{"month": int(month[0]), "year": int(month[1])} for month in months if month[0].isdigit() and int(month[0]) in range(1, 13)]
+        if len(months) == 0:
+            months = [{"month": datetime.now().month, "year": datetime.now().year}]
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor: 
+            try:
+                rows = []
+                for i in range(len(months)):
+                    cursor.execute("""
+                    SELECT  
+                        date_part('year', time) "Năm",
+                        date_part('month', time) "Tháng",
+                        SUM(amount) "Doanh thu",
+                        COUNT(transactionid) "Số lượng giao dịch"
+                    FROM    transaction
+                    WHERE   tranaction_type = false
+                    GROUP BY date_part('year', time), date_part('month', time)
+                    HAVING date_part('year', time) = %s AND date_part('month', time) = %s;
+                    """, (months[i]["year"], months[i]["month"]))
+                    if i == 0:
+                        header = [des[0] for des in cursor.description]
+                    themonth = cursor.fetchone()
+                    themonth = [int(x) for x in themonth] if themonth else [months[i]["year"], months[i]["month"], 0, 0]
+                    rows.extend([themonth])
+                print(tabulate(rows, headers=header, tablefmt="github"))
+                graph = input("Xuất đồ thị không? (1/0): ")
+                if graph == "1":
+                    if len(rows) > 3:
+                        year_months_plot = ["{}/{}".format(row[0], row[1]) for row in rows]
+                        revenue_plot = [row[3] for row in rows]
+                        plt.figure(figsize=(10, 5))
+                        plt.plot(year_months_plot, revenue_plot, marker='o')
+                        plt.xlabel('Tháng')
+                        plt.ylabel('Doanh thu')
+                        plt.title('Doanh thu theo tháng')
+                        plt.xticks(rotation=45)
+                        plt.tight_layout()
+                        plt.savefig(r"revenue\month_revenue_created_at_{}.png".format(datetime.now().strftime("%d-%m-%Y")))
+                        plt.show()
+            except psycopg2.Error as e:
+                print("Error: ", e)
+    print("1. Thử lại")
+    print("2. Quay lại")
+    command(revenue_month, revenue_manage)
+
+def revenue_year():
+    xoamanhinh()
+    print("Doanh thu năm nay")
+    # default year is this year
+    year = datetime.now().strftime("%Y")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("""
+                SELECT  SUM(amount) "Doanh thu",
+                        COUNT(transactionid) "Số lượng giao dịch"
+                FROM    transaction
+                WHERE   date_part('year', time) = %s and tranaction_type = false
+                """, (year,))
+                rows = cursor.fetchall()
+                if rows:
+                    header = [des[0] for des in cursor.description]
+                    print(tabulate(rows, headers=header, tablefmt="github"))
+                else: 
+                    print("Không có giao dịch nào trong năm " + year)
+            except psycopg2.Error as e:
+                print("Error: ", e)
+    print("1. Thử lại")
+    print("2. Quay lại")
+    command(revenue_year, revenue_manage)
 
 def signup():
     xoamanhinh()
@@ -769,13 +929,12 @@ def student_signup():
                 command(student_signup, exit)
                 return
 
-datebirth_regex = r"^(0[1-9]|[12][0-9]|3[01])/(0[1-9]|1[012])/(19|20)\d\d$"
-email_regex = r'^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$'
+
 def staff_signup():
     xoamanhinh()
     fullname = input("Tên của bạn là: ")
     datebirth = input("Ngày/tháng/năm sinh: ")
-    while not(re.match(datebirth_regex,datebirth)):
+    while not(re.match(date_regex, datebirth)):
         xoamanhinh()
         print("Ngày tháng năm sinh bạn nhập không hợp lệ.\nHãy nhập theo mẫu dd/mm/yyyy")
         datebirth = input("Ngày/tháng/năm sinh: ")
