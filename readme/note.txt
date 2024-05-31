@@ -134,3 +134,6 @@ student_out kiểm tra biển số xem lấy đúng xe ra không (done)
 46. (question) Thêm vehicle_process để tránh lặp xe
 -> (Q.No) Không cần phải tối ưu như vậy
 47. (question) có thể cung cấp thông tin xe thật khi "lấy nhầm xe"
+
+
+------------------31/05/2024--------------------------------------------
