@@ -99,7 +99,3 @@ def twentyfiveQueries():
                 except Exception as e:
                     print(f"Đã xảy ra lỗi ở truy vấn {i}: {e}")
 
-# Example usage of the above functions
-func3()
-parkLot_manage()
-twentyfiveQueries()
