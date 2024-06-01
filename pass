@@ -84,7 +84,6 @@ def twentyfiveQueries():
     queries = [
         "SELECT * FROM application",
         "SELECT * FROM park_lot",
-        # Add more queries as needed
     ]
     
     with psycopg2.connect(**conn_params) as conn:
