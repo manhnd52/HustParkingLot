@@ -1,0 +1,105 @@
+def func3():
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("SELECT * FROM application")
+                applications = cursor.fetchall()
+                
+                if applications:
+                    for app in applications:
+                        print(f"ID: {app[0]}, Name: {app[1]}, Date of Birth: {app[2]}, Email: {app[3]}")
+                        try:
+                            input("Nhấn Enter để xem tiếp, hoặc nhấn Ctrl + C để dừng...\n")
+                        except KeyboardInterrupt:
+                            print("Dừng xem.")
+                            break
+                else:
+                    print("Không có đơn đăng kí nào cả.")
+            except Exception as e:
+                print(f"Đã xảy ra lỗi: {e}")
+//
+
+def parkLot_manage():
+    def add_park_lot():
+        name = input("Nhập tên bãi đỗ xe: ")
+        location = input("Nhập vị trí bãi đỗ xe: ")
+        capacity = int(input("Nhập sức chứa của bãi đỗ xe: "))
+        
+        with psycopg2.connect(**conn_params) as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("INSERT INTO park_lot (name, location, capacity) VALUES (%s, %s, %s)", (name, location, capacity))
+                    conn.commit()
+                    print("Thêm bãi đỗ xe thành công!")
+                except Exception as e:
+                    print(f"Đã xảy ra lỗi: {e}")
+    
+    def delete_park_lot():
+        park_lot_id = int(input("Nhập ID bãi đỗ xe cần xóa: "))
+        
+        with psycopg2.connect(**conn_params) as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("DELETE FROM park_lot WHERE id = %s", (park_lot_id,))
+                    conn.commit()
+                    print("Xóa bãi đỗ xe thành công!")
+                except Exception as e:
+                    print(f"Đã xảy ra lỗi: {e}")
+    
+    def view_park_lots():
+        with psycopg2.connect(**conn_params) as conn:
+            with conn.cursor() as cursor:
+                try:
+                    cursor.execute("SELECT * FROM park_lot")
+                    park_lots = cursor.fetchall()
+                    
+                    if park_lots:
+                        for lot in park_lots:
+                            print(f"ID: {lot[0]}, Name: {lot[1]}, Location: {lot[2]}, Capacity: {lot[3]}")
+                    else:
+                        print("Không có bãi đỗ xe nào.")
+                except Exception as e:
+                    print(f"Đã xảy ra lỗi: {e}")
+    
+    while True:
+        print("1. Thêm bãi đỗ xe")
+        print("2. Xóa bãi đỗ xe")
+        print("3. Xem danh sách bãi đỗ xe")
+        print("4. Quay lại")
+        choice = input("Chọn chức năng: ")
+        
+        if choice == '1':
+            add_park_lot()
+        elif choice == '2':
+            delete_park_lot()
+        elif choice == '3':
+            view_park_lots()
+        elif choice == '4':
+            break
+        else:
+            print("Lựa chọn không hợp lệ, vui lòng chọn lại.")
+//
+
+def twentyfiveQueries():
+    queries = [
+        "SELECT * FROM application",
+        "SELECT * FROM park_lot",
+        # Add more queries as needed
+    ]
+    
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            for i, query in enumerate(queries, 1):
+                try:
+                    cursor.execute(query)
+                    results = cursor.fetchall()
+                    print(f"Query {i}: {query}")
+                    for result in results:
+                        print(result)
+                except Exception as e:
+                    print(f"Đã xảy ra lỗi ở truy vấn {i}: {e}")
+
+# Example usage of the above functions
+func3()
+parkLot_manage()
+twentyfiveQueries()
