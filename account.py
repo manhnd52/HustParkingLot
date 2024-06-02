@@ -2,12 +2,12 @@
 
 conn_params = {
     "host": "localhost",
-    "database": "",
+    "database": "carPark",
     "user": "postgres",
-    "password": ""
+    "password": "123456"
 }
 
 # Thiết lập gmail
 
-host_email = ""
-host_password = ""
+host_email = "manha1k48@gmail.com"
+host_password = "gvva dbrf ducs syhj"

@@ -166,6 +166,8 @@ def transactionHistory():
                     for i in range(0, len(rows), 5):
                         print(tabulate(rows[i:i+5], headers=header, tablefmt="github"))
                         try:
+                            if (i > len(rows) - 5): 
+                                raise KeyboardInterrupt
                             input("Nhấn Enter để xem tiếp, hoặc nhấn Ctrl + C để dừng...\n")
                         except KeyboardInterrupt:
                             stop_loop = True;
@@ -193,9 +195,10 @@ def payin():
                 WHERE mssv = %s
                 RETURNING balance
                 """, (amount, student_login_info["mssv"]))
-                print("Giao dịch thành công! Số dư trong tài khoản của bạn là " + str(cursor.fetchone()[0]) + " đồng.")
+                print("\033[32mGiao dịch thành công!\033[0m")
+                print("Số dư trong tài khoản của bạn là " + str(cursor.fetchone()[0]) + " đồng.")
             except: 
-                print("Giao dịch thất bại! Vui lòng thử lại sau")
+                print("\033[31mGiao dịch thất bại! Vui lòng thử lại sau\033[0m")
     print("1. Quay lại")
     print("2. Exit")
     command(success_student_login, exit)
@@ -658,19 +661,25 @@ def staff_manage():
 
 def print_staff():
     xoamanhinh()
+    print("[DANH SÁCH NHÂN VIÊN]")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
             try:
-                cursor.execute("SELECT * FROM staff")
+                cursor.execute("""SELECT staffid "Staff ID", 
+                                        fullname "Họ và Tên",
+                                        password "Mật khẩu",
+                                        parking_lot.name "Bãi đỗ xe" 
+                                FROM staff NATURAL JOIN parking_lot""")
                 rows = cursor.fetchall()
                 if rows:
-                    print("Danh sách nhân viên: ")
                     header = [des[0] for des in cursor.description]
                     stop_loop = False
                     while not stop_loop:
                         for i in range(0, len(rows),5):
                             print(tabulate(rows[i:i+5], headers=header, tablefmt="github"))
                             try:
+                                if (i > len(rows) - 5): 
+                                    raise KeyboardInterrupt
                                 input("Nhấn Enter để xem tiếp, hoặc nhấn Ctrl + C để dừng...\n")
                             except KeyboardInterrupt:
                                 stop_loop = True
@@ -679,21 +688,23 @@ def print_staff():
                             break  
                 else:
                     print("Không có nhân viên nào cả.")
+                    
             except Exception as e:
                 print(f"Đã xảy ra lỗi khi thực hiện truy vấn: {e}")
+    input("Nhấn Enter để quay lại...")
     staff_manage()
         
 
 def addStaff():
     xoamanhinh()
-    print("Thêm nhân viên")
+    print("[THÊM NHÂN VIÊN]")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
             try:
-                name = input("Hãy nhập tên nhân viên: ")
+                name = input("Tên nhân viên: ")
                 while True:
-                    print("Chọn bãi đỗ xe:")
-                    cursor.execute("SELECT name FROM parking_lot")
+                    print("Bãi đỗ xe:")
+                    cursor.execute("SELECT name FROM parking_lot ORDER BY parkinglotid ASC")
                     parkinglots = cursor.fetchall()
                     for i, lot in enumerate(parkinglots):
                         print(f"{i + 1}. {lot[0]}")
@@ -703,14 +714,16 @@ def addStaff():
                     if parkinglot:
                         parkinglot = parkinglot[0]
                         break
-                    else: print("Bãi đỗ xe không tồn tại!")
+                    else: 
+                        xoamanhinh()
+                        print("\033[31mBãi đỗ xe không tồn tại!\033[0m")
                 cursor.execute("INSERT INTO Staff(fullname, parkinglotid) VALUES(%s, %s) RETURNING staffid", (name, parkinglot))
                 staffid = cursor.fetchone()[0]
-                print(f"Thêm nhân viên {name} thành công!") 
+                print(f"\033[32mThêm nhân viên {name} thành công!\033[0m") 
                 print(f"Staff ID của nhân viên là {staffid}")
                 print( "Mật khẩu mặc định của nhân viên là '12345678'.")
             except:
-                 print("Thêm nhân viên thất bại do xảy ra lỗi!")
+                 print("\033[31mThêm nhân viên thất bại do xảy ra lỗi!\033[0m")
 
     print("1. Thêm nhân viên khác")
     print("2. Quay lại")
@@ -718,19 +731,16 @@ def addStaff():
 
 def deleteStaff():
     xoamanhinh()
-    print("Xóa nhân viên")
+    print("[XÓA NHÂN VIÊN]")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
             try:
-                id = input("Nhập Staff ID: ")
-                check = int(input("Bạn chắc chắn muốn xóa (xóa(1)/thôii(0)): "))
+                id = input("Staff ID: ")
+                check = int(input("Chắc chắn muốn xóa (Xóa(1)/ Thôii(0)): "))
                 if check:
-                    cursor.execute("DELETE FROM staff WHERE staffid = %s",(id))
+                    cursor.execute("DELETE FROM staff WHERE staffid = %s", (id,))
                     conn.commit()
-                    print("Xóa thành công.")
-                else:
-                    input("Nhấn phím Enter để quay lại...")
-                    staff_manage()
+                    print("\033[32mXóa thành công.\033[0m")
             except Exception as e:
                 print(f"Đã xảy ra lỗi: {e}")
     print("1. Xóa nhân viên khác")
@@ -739,7 +749,7 @@ def deleteStaff():
 
 def modifyStaff():
     xoamanhinh()
-    print("Sửa.")
+    print("[SỬA NHÂN VIÊN]")
     print("Command template: (command)-(ID)-(nội dung)")
     str = input("Nhập: ")
     str = str.split('-')
@@ -751,19 +761,19 @@ def modifyStaff():
             try:
                 if cmd == "ModifyName":
                     cursor.execute("UPDATE staff SET fullname = %s WHERE staffid = %s",(content,id))
-                    print("Đổi tên thành công.")
+                    print("\033[32mĐổi tên thành công.\033[0m")
                 elif cmd == "ModifyPassword":
                     cursor.execute("UPDATE staff SET password = %s WHERE staffid = %s",(content,id))
-                    print("Đổi mật khẩu thành công.")
-                elif cmd == "ModifyParkinglot":
+                    print("\033[32mĐổi mật khẩu thành công.\033[0m")
+                elif cmd == "ModifyParkingLot":
                     cursor.execute("UPDATE staff SET parkinglot = %s WHERE staffid = %s",(content,id))
-                    print("Thay đổi nơi làm việc thành công.")
+                    print("\033[32mThay đổi nơi làm việc thành công.\033[0m")
                 conn.commit()
             except:
                 print("Error")
-    print("1. Sửa")
-    print("2. Thoát")
-    command(modifyStaff,staff_manage)
+    print("1. Tiếp tục sửa")
+    print("2. Quay lại")
+    command(modifyStaff, staff_manage)
 
 def reviewStaff():
     xoamanhinh()
@@ -1052,7 +1062,7 @@ def revenue_day():
     print("1. Thử lại")
     print("2. Quay lại")
     command(revenue_day, revenue_manage)
-1
+
 def revenue_month():
     xoamanhinh()
     print("Thống kê doanh thu theo tháng")
@@ -1140,24 +1150,25 @@ def signup():
     xoamanhinh()
     print("1. Sinh viên đăng kí gửi xe bằng thẻ sinh viên")
     print("2. Đăng kí trở thành nhân viên nhà xe")
-    command(student_signup, staff_signup)
+    print("3. Quay lại")
+    command(student_signup, staff_signup, menu)
 
 def student_signup():
     balance = 0
     xoamanhinh()
-    fullname = input("Tên của bạn là: ")
-    mssv = input("mssv của bạn là: ")
+    fullname = input("Tên: ")
+    mssv = input("MSSV: ")
     while not(re.match(mssv_regex, mssv)):
         xoamanhinh()
         print("Mã số sinh viên không hợp lệ! Mã số sinh viên phải bắt đầu bằng 20 và có 8 chữ số.")
-        mssv = input("mssv của bạn là: ")
-    password = getpass("Mật khẩu là: ")
-    check_password = getpass("Nhập lại mật khẩu: ")
+        mssv = input("MSSV: ")
+    password = getpass("Password: ")
+    check_password = getpass("Verify Password: ")
     while password != check_password:
         xoamanhinh()
         print("Mật khẩu nhập vào không khớp. Vui lòng nhập lại")
-        password = getpass("Mật khẩu là: ")
-        check_password = getpass("Nhập lại mật khẩu: ")
+        password = getpass("Password: ")
+        check_password = getpass("Verify Password: ")
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
