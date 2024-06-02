@@ -148,20 +148,28 @@ def reviewParkLot():
         with conn.cursor() as cursor:
             try:
                 cursor.execute("""
-                    SELECT pl.parkinglotid, pl.name, pl.capacity, s.fullname
+                    SELECT pl.parkinglotid, pl.name, pl.capacity, s.fullname, ps.spotid, ps.occupied
                     FROM parking_lot pl
                     LEFT JOIN staff s ON pl.parkinglotid = s.parkinglotid
+                    LEFT JOIN parking_spot ps ON pl.parkinglotid = ps.parkinglotid
                 """)
                 parking_lots = cursor.fetchall()
                 if parking_lots:
+                    current_parkinglotid = None
                     for lot in parking_lots:
-                        staff_name = lot[3] if lot[3] else "Không có"
-                        print(f"ID: {lot[0]}, Tên: {lot[1]}, Sức chứa: {lot[2]}, Nhân viên quản lý: {staff_name}")
+                        if lot[0] != current_parkinglotid:
+                            current_parkinglotid = lot[0]
+                            staff_name = lot[3] if lot[3] else "Không có"
+                            print(f"\nID: {lot[0]}, Tên: {lot[1]}, Sức chứa: {lot[2]}, Nhân viên quản lý: {staff_name}")
+                            print("Vị trí đỗ xe:")
+                        spot_id = lot[4]
+                        occupied = "Có" if lot[5] else "Không"
+                        print(f"  Vị trí ID: {spot_id}, Đang đỗ: {occupied}")
                 else:
                     print("Không có bãi đỗ xe nào trong cơ sở dữ liệu.")
             except Exception as e:
                 print(f"Duyệt thông tin bãi đỗ xe thất bại do xảy ra lỗi: {e}")
 
-    print("1. Duyệt lại")
+    print("\n1. Duyệt lại")
     print("2. Quay lại")
     command(reviewParkLot, parkLot_manage)
