@@ -1,3 +1,53 @@
+def modifyStudent():
+    xoamanhinh()
+    print("Sửa thông tin sinh viên")
+    mssv = input("Mã số sinh viên cần sửa: ")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT fullname FROM student WHERE mssv = %s", (mssv,))
+                student = cursor.fetchone()
+                if student:
+                    print(f"Sinh viên hiện tại: {student[0]}")
+                    new_name = input("Nhập tên mới (nhấn Enter để giữ nguyên): ") or student[0]
+                    cursor.execute("UPDATE student SET fullname = %s WHERE mssv = %s", (new_name, mssv))
+                    conn.commit()
+                    print(f"Cập nhật thông tin sinh viên {mssv} thành công!")
+                else:
+                    print("Không tìm thấy sinh viên với MSSV đã nhập.")
+            except Exception as e:
+                print(f"Sửa thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Sửa thông tin sinh viên khác")
+    print("2. Quay lại")
+    command(modifyStudent, student_manage)
+
+def reviewStudent():
+    xoamanhinh()
+    print("Duyệt thông tin sinh viên")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT mssv, fullname FROM student")
+                students = cursor.fetchall()
+                if students:
+                    for student in students:
+                        print(f"MSSV: {student[0]}, Tên: {student[1]}")
+                else:
+                    print("Không có sinh viên nào trong cơ sở dữ liệu.")
+            except Exception as e:
+                print(f"Duyệt thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Duyệt lại")
+    print("2. Quay lại")
+    command(reviewStudent, student_manage)
+
+
+
+
+
+
+
 def parkLot_manage():
     	xoamanhinh()
 	print("Quản lý bãi đỗ xe")
