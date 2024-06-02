@@ -90,7 +90,7 @@ def menu():
     print("1. Login")
     print("2. Sign Up")
     print("3. 25Queries")
-    command(login, signup, twentyfiveQueries)
+    command(login, signup)
 
 def login():
     xoamanhinh()
@@ -1252,10 +1252,6 @@ def staff_signup():
                 print("Lỗi không thể đăng kí, vui lòng thử lại sau")
     input("Nhấn Enter để quay lại...")
     signup()
-
-
-def twentyfiveQueries():
-    pass
 
 def fail_login(): 
     xoamanhinh()
