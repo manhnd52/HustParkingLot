@@ -1042,9 +1042,12 @@ def deleteParkLot():
                 cursor.execute("SELECT name FROM parking_lot WHERE parkinglotid = %s", (parking_lot_id,))
                 name = cursor.fetchone()
                 if name:
+                    print("\033[31mXóa bãi đỗ xe đồng nghĩa với việc xóa tất cả các chỗ đỗ xe và nhân viên quản lý của bãi đó.\033[0m")
                     print(f"Có phải là bãi đỗ xe '{name[0]}' không?")
                     if int(input("1. Có\n2. Không\nCommand: ")) == 1:
-                        cursor.execute("DELETE FROM parking_lot WHERE parkinglotid = %s", (parking_lot_id,))
+                        cursor.execute("DELETE FROM parking_spot WHERE parkinglotid = %s", (parking_lot_id,))
+                        cursor.execute("DELETE FROM staff WHERE parkinglotid = %s", (parking_lot_id,))
+                        cursor.execute("DELETE FROM parking_lot WHERE parkinglotid = %s ", (parking_lot_id,))
                         conn.commit()
                         print(f"Xóa bãi đỗ xe {parking_lot_id} thành công!")
                 else:
@@ -1096,10 +1099,8 @@ def reviewParkLot():
         with conn.cursor() as cursor:
             try:
                 cursor.execute("""
-                    SELECT pl.parkinglotid, pl.name, pl.capacity, s.fullname, ps.spotid, ps.occupied
-                    FROM parking_lot pl
-                    LEFT JOIN staff s ON pl.parkinglotid = s.parkinglotid
-                    LEFT JOIN parking_spot ps ON pl.parkinglotid = ps.parkinglotid
+                    SELECT parkinglotid, name, capacity, staff.fullname
+                    FROM parking_lot NATURAL JOIN staff;
                 """)
                 parking_lots = cursor.fetchall()
                 if parking_lots:
@@ -1108,11 +1109,7 @@ def reviewParkLot():
                         if lot[0] != current_parkinglotid:
                             current_parkinglotid = lot[0]
                             staff_name = lot[3] if lot[3] else "Không có"
-                            print(f"\nID: {lot[0]}, Tên: {lot[1]}, Sức chứa: {lot[2]}, Nhân viên quản lý: {staff_name}")
-                            print("Vị trí đỗ xe:")
-                        spot_id = lot[4]
-                        occupied = "Có" if lot[5] else "Không"
-                        print(f"  Vị trí ID: {spot_id}, Đang đỗ: {occupied}")
+                            print(f"ID: {lot[0]}, Tên: {lot[1]}, Sức chứa: {lot[2]}, Nhân viên quản lý: {staff_name}")
                 else:
                     print("Không có bãi đỗ xe nào trong cơ sở dữ liệu.")
             except Exception as e:
