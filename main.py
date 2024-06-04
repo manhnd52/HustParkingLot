@@ -641,6 +641,7 @@ def deleteStudent():
                 print("Xóa sinh viên thất bại do xảy ra lỗi!")
     print("1. Xóa sinh viên khác")
     print("2. Quay lại")
+    command(deleteStudent, student_manage)
 
 def modifyStudent():
     xoamanhinh()
@@ -667,7 +668,25 @@ def modifyStudent():
     command(modifyStudent, student_manage)
 
 def reviewStudent():
-    pass
+    xoamanhinh()
+    print("Duyệt thông tin sinh viên")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT mssv, fullname FROM student")
+                students = cursor.fetchall()
+                if students:
+                    for student in students:
+                        print(f"MSSV: {student[0]}, Tên: {student[1]}")
+                else:
+                    print("Không có sinh viên nào trong cơ sở dữ liệu.")
+            except Exception as e:
+                print(f"Duyệt thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Duyệt lại")
+    print("2. Quay lại")
+    command(reviewStudent, student_manage)
+
 
 def staff_manage():
     xoamanhinh()
