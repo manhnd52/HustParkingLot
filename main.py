@@ -1263,5 +1263,176 @@ def fail_login():
 def logout():
     reset_all_login_info()
     menu()
+def modifyStudent():
+    xoamanhinh()
+    print("Sửa thông tin sinh viên")
+    mssv = input("Mã số sinh viên cần sửa: ")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT fullname FROM student WHERE mssv = %s", (mssv,))
+                student = cursor.fetchone()
+                if student:
+                    print(f"Sinh viên hiện tại: {student[0]}")
+                    new_name = input("Nhập tên mới (nhấn Enter để giữ nguyên): ") or student[0]
+                    cursor.execute("UPDATE student SET fullname = %s WHERE mssv = %s", (new_name, mssv))
+                    conn.commit()
+                    print(f"Cập nhật thông tin sinh viên {mssv} thành công!")
+                else:
+                    print("Không tìm thấy sinh viên với MSSV đã nhập.")
+            except Exception as e:
+                print(f"Sửa thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Sửa thông tin sinh viên khác")
+    print("2. Quay lại")
+    command(modifyStudent, student_manage)
+
+def reviewStudent():
+    xoamanhinh()
+    print("Duyệt thông tin sinh viên")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT mssv, fullname FROM student")
+                students = cursor.fetchall()
+                if students:
+                    for student in students:
+                        print(f"MSSV: {student[0]}, Tên: {student[1]}")
+                else:
+                    print("Không có sinh viên nào trong cơ sở dữ liệu.")
+            except Exception as e:
+                print(f"Duyệt thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Duyệt lại")
+    print("2. Quay lại")
+    command(reviewStudent, student_manage)
+
+
+def parkLot_manage():
+    xoamanhinh()
+    print("\033[1mQuản lý bãi đỗ xe\033[0m")
+    print("1. Thêm")
+    print("2. Xóa")
+    print("3. Sửa")
+    print("4. Duyệt")
+    print("5. Quay lại")
+    command(addParkLot, deleteParkLot, modifyParkLot, reviewParkLot, success_admin_login)
+
+def addParkLot():
+    xoamanhinh()
+    print("Thêm bãi đỗ xe")
+    name = input("Nhập tên bãi đỗ xe: ")
+    while True:
+        try:
+            capacity = int(input("Nhập sức chứa của bãi đỗ xe: "))
+            break
+        except ValueError:
+            print("Giá trị nhập vào không hợp lệ, vui lòng nhập lại.")
+
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("INSERT INTO parking_lot (name, capacity) VALUES (%s, %s)", (name, capacity))
+                conn.commit()
+                print("Thêm bãi đỗ xe thành công!")
+            except psycopg2.IntegrityError:
+                print("Tên bãi đỗ xe đã tồn tại!")
+            except Exception as e:
+                print(f"Thêm bãi đỗ xe thất bại do xảy ra lỗi: {e}")
+
+    print("1. Thêm bãi đỗ xe khác")
+    print("2. Quay lại")
+    command(addParkLot, parkLot_manage)
+
+def deleteParkLot():
+    xoamanhinh()
+    print("Xóa bãi đỗ xe")
+    parking_lot_id = input("Nhập ID bãi đỗ xe: ")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("SELECT name FROM parking_lot WHERE parkinglotid = %s", (parking_lot_id,))
+                name = cursor.fetchone()
+                if name:
+                    print(f"Có phải là bãi đỗ xe '{name[0]}' không?")
+                    if int(input("1. Có\n2. Không\nCommand: ")) == 1:
+                        cursor.execute("DELETE FROM parking_lot WHERE parkinglotid = %s", (parking_lot_id,))
+                        conn.commit()
+                        print(f"Xóa bãi đỗ xe {parking_lot_id} thành công!")
+                else:
+                    print("Không tìm thấy bãi đỗ xe với ID đã nhập.")
+            except Exception as e:
+                print(f"Xóa bãi đỗ xe thất bại do xảy ra lỗi: {e}")
+
+    print("1. Xóa bãi đỗ xe khác")
+    print("2. Quay lại")
+    command(deleteParkLot, parkLot_manage)
+
+def modifyParkLot():
+    xoamanhinh()
+    print("Sửa thông tin bãi đỗ xe")
+    parking_lot_id = input("Nhập ID bãi đỗ xe cần sửa: ")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("SELECT name, capacity FROM parking_lot WHERE parkinglotid = %s", (parking_lot_id,))
+                parking_lot = cursor.fetchone()
+                if parking_lot:
+                    print(f"Bãi đỗ xe hiện tại: Tên: {parking_lot[0]}, Sức chứa: {parking_lot[1]}")
+                    new_name = input(f"Nhập tên mới của bãi đỗ xe (nhấn Enter để giữ nguyên '{parking_lot[0]}'): ") or parking_lot[0]
+                    while True:
+                        try:
+                            new_capacity = input(f"Nhập sức chứa mới của bãi đỗ xe (nhấn Enter để giữ nguyên '{parking_lot[1]}'): ")
+                            new_capacity = int(new_capacity) if new_capacity else parking_lot[1]
+                            break
+                        except ValueError:
+                            print("Giá trị nhập vào không hợp lệ, vui lòng nhập lại.")
+                    
+                    cursor.execute("UPDATE parking_lot SET name = %s, capacity = %s WHERE parkinglotid = %s", 
+                                   (new_name, new_capacity, parking_lot_id))
+                    conn.commit()
+                    print("Cập nhật bãi đỗ xe thành công!")
+                else:
+                    print("Không tìm thấy bãi đỗ xe với ID đã nhập.")
+            except Exception as e:
+                print(f"Sửa thông tin bãi đỗ xe thất bại do xảy ra lỗi: {e}")
+
+    print("1. Sửa thông tin bãi đỗ xe khác")
+    print("2. Quay lại")
+    command(modifyParkLot, parkLot_manage)
+
+def reviewParkLot():
+    xoamanhinh()
+    print("Duyệt thông tin bãi đỗ xe")
+    with psycopg2.connect(**conn_params) as conn:
+        with conn.cursor() as cursor:
+            try:
+                cursor.execute("""
+                    SELECT pl.parkinglotid, pl.name, pl.capacity, s.fullname, ps.parkingspotid, ps.occupied
+                    FROM parking_lot pl
+                    LEFT JOIN staff s ON pl.parkinglotid = s.parkinglotid
+                    LEFT JOIN parking_spot ps ON pl.parkinglotid = ps.parkinglotid
+                """)
+                parking_lots = cursor.fetchall()
+                if parking_lots:
+                    current_parkinglotid = None
+                    for lot in parking_lots:
+                        if lot[0] != current_parkinglotid:
+                            current_parkinglotid = lot[0]
+                            staff_name = lot[3] if lot[3] else "Không có"
+                            print(f"\nID: {lot[0]}, Tên: {lot[1]}, Sức chứa: {lot[2]}, Nhân viên quản lý: {staff_name}")
+                            print("Vị trí đỗ xe:")
+                        spot_id = lot[4]
+                        occupied = "Có" if lot[5] else "Không"
+                        print(f"  Vị trí ID: {spot_id}, Đang đỗ: {occupied}")
+                else:
+                    print("Không có bãi đỗ xe nào trong cơ sở dữ liệu.")
+            except Exception as e:
+                print(f"Duyệt thông tin bãi đỗ xe thất bại do xảy ra lỗi: {e}")
+
+    print("\n1. Duyệt lại")
+    print("2. Quay lại")
+    command(reviewParkLot, parkLot_manage)
+
 
 menu()
