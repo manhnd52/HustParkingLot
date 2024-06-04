@@ -643,7 +643,28 @@ def deleteStudent():
     print("2. Quay lại")
 
 def modifyStudent():
-    pass
+    xoamanhinh()
+    print("Sửa thông tin sinh viên")
+    mssv = input("Mã số sinh viên cần sửa: ")
+    with psycopg2.connect(**conn_params) as conn: 
+        with conn.cursor() as cursor: 
+            try:
+                cursor.execute("SELECT fullname FROM student WHERE mssv = %s", (mssv,))
+                student = cursor.fetchone()
+                if student:
+                    print(f"Sinh viên hiện tại: {student[0]}")
+                    new_name = input("Nhập tên mới (nhấn Enter để giữ nguyên): ") or student[0]
+                    cursor.execute("UPDATE student SET fullname = %s WHERE mssv = %s", (new_name, mssv))
+                    conn.commit()
+                    print(f"Cập nhật thông tin sinh viên {mssv} thành công!")
+                else:
+                    print("Không tìm thấy sinh viên với MSSV đã nhập.")
+            except Exception as e:
+                print(f"Sửa thông tin sinh viên thất bại do xảy ra lỗi: {e}")
+    
+    print("1. Sửa thông tin sinh viên khác")
+    print("2. Quay lại")
+    command(modifyStudent, student_manage)
 
 def reviewStudent():
     pass
