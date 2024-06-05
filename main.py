@@ -487,6 +487,7 @@ def visitor_in():
                 cursor.execute("INSERT INTO now_vehicle (vehicletypeid, license_plate, color, customerid) VALUES (%s, %s, %s, getCustomerId(%s)) RETURNING vehicleId", (vehicleTypeId, license_plate, color, ticket))
                 vehicleId = cursor.fetchone()[0]
                 cursor.execute("INSERT INTO park (vehicleid, parkingspotid) VALUES (%s, %s)", (vehicleId, spotId))
+                cursor.execute("INSERT INTO transaction (customerId, amount, tranaction_type) VALUES (getCustomerId(%s), %s, false)", (ticket, price))
                 print("Vé của bạn là " + str(ticket) + ". Hãy giữ vé để ra bãi!")
                 print(f"Bạn hãy để xe ở chỗ {spotId}!")
             except psycopg2.errors as e:

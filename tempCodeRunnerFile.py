@@ -1,0 +1,1 @@
+ cursor.execute("INSERT INTO transaction (customerId, amount, tranaction_type) VALUES (getCustomerId(%s), %s, false)", (ticket, price))
