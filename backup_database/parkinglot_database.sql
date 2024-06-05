@@ -5,7 +5,7 @@
 -- Dumped from database version 16.2
 -- Dumped by pg_dump version 16.2
 
--- Started on 2024-05-23 16:35:02
+-- Started on 2024-06-05 10:45:25
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -19,7 +19,7 @@ SET client_min_messages = warning;
 SET row_security = off;
 
 --
--- TOC entry 242 (class 1255 OID 18369)
+-- TOC entry 238 (class 1255 OID 18661)
 -- Name: addcustomer(boolean); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -40,7 +40,7 @@ $$;
 ALTER FUNCTION public.addcustomer(type boolean) OWNER TO postgres;
 
 --
--- TOC entry 244 (class 1255 OID 18374)
+-- TOC entry 239 (class 1255 OID 18662)
 -- Name: addstudent(integer, character varying); Type: PROCEDURE; Schema: public; Owner: postgres
 --
 
@@ -62,7 +62,7 @@ $$;
 ALTER PROCEDURE public.addstudent(IN in_mssv integer, IN in_name character varying) OWNER TO postgres;
 
 --
--- TOC entry 243 (class 1255 OID 18372)
+-- TOC entry 240 (class 1255 OID 18663)
 -- Name: addvisitor(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -87,7 +87,72 @@ $$;
 ALTER FUNCTION public.addvisitor() OWNER TO postgres;
 
 --
--- TOC entry 250 (class 1255 OID 18561)
+-- TOC entry 241 (class 1255 OID 18664)
+-- Name: check_one_vehicle_per_student(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.check_one_vehicle_per_student() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Kiểm tra xem có xe nào của student vẫn đang được gửi
+	
+    IF EXISTS (
+		SELECT 1
+		FROM park JOIN now_vehicle USING(vehicleId)
+		WHERE customerId = (SELECT customerId
+							FROM now_vehicle n WHERE n.vehicleId = NEW.vehicleId)
+			AND exit_time IS NULL
+    ) THEN
+        -- Nếu có, báo lỗi và không cho phép chèn bản ghi mới
+        RAISE EXCEPTION 'Mỗi sinh viên chỉ được gửi một xe tại một thời điểm';
+    END IF;
+    -- Nếu không có xe nào đang gửi, cho phép chèn bản ghi mới
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.check_one_vehicle_per_student() OWNER TO postgres;
+
+--
+-- TOC entry 242 (class 1255 OID 18665)
+-- Name: delete_student(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_student() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE 
+BEGIN 
+	DELETE FROM customer WHERE customerid = OLD.customerid;
+	RETURN OLD;
+END;
+$$;
+
+
+ALTER FUNCTION public.delete_student() OWNER TO postgres;
+
+--
+-- TOC entry 243 (class 1255 OID 18666)
+-- Name: delete_visitor(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.delete_visitor() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+DECLARE 
+BEGIN 
+	DELETE FROM customer WHERE customerid = OLD.customerid;
+	RETURN OLD;
+END;
+$$;
+
+
+ALTER FUNCTION public.delete_visitor() OWNER TO postgres;
+
+--
+-- TOC entry 244 (class 1255 OID 18667)
 -- Name: getavailablespots(integer, integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -103,6 +168,7 @@ CREATE FUNCTION public.getavailablespots(input_parkinglotid integer, input_size 
 			parkinglotid = input_parkinglotid
 			AND input_size = (SELECT size FROM spot_type s WHERE p.spottypeid = s.spottypeid)
 			AND NOT occupied 
+		ORDER BY parkingspotid
 		LIMIT 1;
 		RETURN spot_id;
 	END;
@@ -112,7 +178,7 @@ $$;
 ALTER FUNCTION public.getavailablespots(input_parkinglotid integer, input_size integer) OWNER TO postgres;
 
 --
--- TOC entry 241 (class 1255 OID 18393)
+-- TOC entry 245 (class 1255 OID 18668)
 -- Name: getcustomerid(character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -141,7 +207,7 @@ $$;
 ALTER FUNCTION public.getcustomerid(input_mssv character varying) OWNER TO postgres;
 
 --
--- TOC entry 245 (class 1255 OID 18400)
+-- TOC entry 246 (class 1255 OID 18669)
 -- Name: getparkinglotid(integer); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -160,16 +226,17 @@ $$;
 ALTER FUNCTION public.getparkinglotid(input_staffid integer) OWNER TO postgres;
 
 --
--- TOC entry 259 (class 1255 OID 18576)
+-- TOC entry 247 (class 1255 OID 18670)
 -- Name: getvehicleid(character varying); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
 CREATE FUNCTION public.getvehicleid(string character varying) RETURNS integer
     LANGUAGE plpgsql
-    AS $$
+    AS $$-- Hiện tại đang sai vì vehicle không còn là những xe đang đỗ
 DECLARE
     o_vehicleId INT;
 BEGIN
+-- Nếu là mssv
     IF length(string) = 8 THEN
         SELECT vehicleid INTO o_vehicleId
         FROM now_vehicle
@@ -178,6 +245,7 @@ BEGIN
             FROM student
             WHERE mssv = string
         );
+-- Nếu là uuid
 	ELSE 
 		SELECT vehicleid INTO o_vehicleId
 		FROM now_vehicle 
@@ -198,7 +266,7 @@ $$;
 ALTER FUNCTION public.getvehicleid(string character varying) OWNER TO postgres;
 
 --
--- TOC entry 257 (class 1255 OID 18562)
+-- TOC entry 248 (class 1255 OID 18671)
 -- Name: is_occuppied(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -217,7 +285,7 @@ $$;
 ALTER FUNCTION public.is_occuppied() OWNER TO postgres;
 
 --
--- TOC entry 240 (class 1255 OID 18237)
+-- TOC entry 249 (class 1255 OID 18672)
 -- Name: payin_log_func(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -225,8 +293,11 @@ CREATE FUNCTION public.payin_log_func() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
 BEGIN
-   INSERT INTO transaction (mssv, amount, time, tranaction_type)
-   VALUES (NEW.mssv, NEW.balance - OLD.balance, current_timestamp, true);
+   INSERT INTO transaction (customerid, amount, time, tranaction_type)
+   VALUES (getCustomerId(NEW.mssv), 
+		   abs(OLD.balance - NEW.balance), 
+		   current_timestamp, 
+		   (OLD.balance - NEW.balance) < 0);
    RETURN NEW;
 END;
 $$;
@@ -235,30 +306,7 @@ $$;
 ALTER FUNCTION public.payin_log_func() OWNER TO postgres;
 
 --
--- TOC entry 260 (class 1255 OID 18573)
--- Name: trigger_customer_out(); Type: FUNCTION; Schema: public; Owner: postgres
---
-
-CREATE FUNCTION public.trigger_customer_out() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-BEGIN
-	raise notice 'Đã vào trigger!';
-	IF OLD.exit_time IS NULL THEN
-		raise notice 'UPDATING';
-		UPDATE parking_spot
-		SET occupied = FALSE 
-		WHERE parkingspotid = OLD.parkingspotid;
-	END IF;
-	RETURN NEW;
-END;
-$$;
-
-
-ALTER FUNCTION public.trigger_customer_out() OWNER TO postgres;
-
---
--- TOC entry 239 (class 1255 OID 18235)
+-- TOC entry 250 (class 1255 OID 18673)
 -- Name: trigger_function(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
@@ -276,42 +324,140 @@ $$;
 ALTER FUNCTION public.trigger_function() OWNER TO postgres;
 
 --
--- TOC entry 261 (class 1255 OID 18575)
--- Name: vehicle_out(integer); Type: PROCEDURE; Schema: public; Owner: postgres
+-- TOC entry 251 (class 1255 OID 18674)
+-- Name: update_capacity(); Type: FUNCTION; Schema: public; Owner: postgres
 --
 
-CREATE PROCEDURE public.vehicle_out(IN vehicleid integer)
+CREATE FUNCTION public.update_capacity() RETURNS trigger
     LANGUAGE plpgsql
     AS $$
+DECLARE 
 BEGIN
-  UPDATE park
-  SET exit_time = now()
-  WHERE vehicleid = input_vehicleid;
+	UPDATE parking_lot 
+	SET capacity = capacity + 1
+	WHERE parkinglotid = OLD.parkinglotid;
+	RETURN OLD;
 END;
 $$;
 
 
-ALTER PROCEDURE public.vehicle_out(IN vehicleid integer) OWNER TO postgres;
+ALTER FUNCTION public.update_capacity() OWNER TO postgres;
+
+--
+-- TOC entry 252 (class 1255 OID 18675)
+-- Name: update_parking_spot_status(); Type: FUNCTION; Schema: public; Owner: postgres
+--
+
+CREATE FUNCTION public.update_parking_spot_status() RETURNS trigger
+    LANGUAGE plpgsql
+    AS $$
+BEGIN
+    -- Kiểm tra nếu exit_time được đặt (từ NULL sang một giá trị không NULL)
+    IF NEW.exit_time IS NOT NULL AND OLD.exit_time IS NULL THEN
+        -- Cập nhật bảng parking_spot, đặt occupied thành FALSE
+		RAISE NOTICE 'REAL';
+        UPDATE parking_spot
+        SET occupied = FALSE
+        WHERE parkingspotid = NEW.parkingspotid;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+
+ALTER FUNCTION public.update_parking_spot_status() OWNER TO postgres;
+
+--
+-- TOC entry 253 (class 1255 OID 18676)
+-- Name: vehicle_out(character varying); Type: PROCEDURE; Schema: public; Owner: postgres
+--
+
+CREATE PROCEDURE public.vehicle_out(IN string character varying)
+    LANGUAGE plpgsql
+    AS $$DECLARE
+	x int;
+BEGIN
+	IF length(string) = 8 THEN
+		UPDATE park
+		SET exit_time = now()
+		FROM now_vehicle, student
+		WHERE park.exit_time IS NULL
+		AND park.vehicleId = now_vehicle.vehicleId
+		AND now_vehicle.customerid = getCustomerId(string);
+	ELSE
+		-- Dành cho vé
+		UPDATE park
+		SET exit_time = now()
+		WHERE park.vehicleid = (SELECT vehicleid FROM now_vehicle WHERE customerid = getCustomerId(string))
+		RETURNING parkId INTO x;
+		IF (x IS NULL) THEN RAISE 'Vé không đúng';
+		END IF;
+	END IF;
+END;
+$$;
+
+
+ALTER PROCEDURE public.vehicle_out(IN string character varying) OWNER TO postgres;
 
 SET default_tablespace = '';
 
 SET default_table_access_method = heap;
 
 --
--- TOC entry 219 (class 1259 OID 18076)
+-- TOC entry 215 (class 1259 OID 18677)
+-- Name: application; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.application (
+    id integer NOT NULL,
+    fullname character(50) NOT NULL,
+    datebirth date NOT NULL,
+    email character(50) NOT NULL
+);
+
+
+ALTER TABLE public.application OWNER TO postgres;
+
+--
+-- TOC entry 216 (class 1259 OID 18680)
+-- Name: application_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.application_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.application_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 4992 (class 0 OID 0)
+-- Dependencies: 216
+-- Name: application_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.application_id_seq OWNED BY public.application.id;
+
+
+--
+-- TOC entry 217 (class 1259 OID 18681)
 -- Name: customer; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.customer (
     customerid integer NOT NULL,
-    customertype boolean
+    customertype boolean NOT NULL
 );
 
 
 ALTER TABLE public.customer OWNER TO postgres;
 
 --
--- TOC entry 218 (class 1259 OID 18075)
+-- TOC entry 218 (class 1259 OID 18684)
 -- Name: customer_customerid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -327,7 +473,7 @@ CREATE SEQUENCE public.customer_customerid_seq
 ALTER SEQUENCE public.customer_customerid_seq OWNER TO postgres;
 
 --
--- TOC entry 4978 (class 0 OID 0)
+-- TOC entry 4993 (class 0 OID 0)
 -- Dependencies: 218
 -- Name: customer_customerid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -336,7 +482,7 @@ ALTER SEQUENCE public.customer_customerid_seq OWNED BY public.customer.customeri
 
 
 --
--- TOC entry 217 (class 1259 OID 18049)
+-- TOC entry 219 (class 1259 OID 18685)
 -- Name: customerid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -351,19 +497,7 @@ CREATE SEQUENCE public.customerid_seq
 ALTER SEQUENCE public.customerid_seq OWNER TO postgres;
 
 --
--- TOC entry 238 (class 1259 OID 18394)
--- Name: nhap; Type: TABLE; Schema: public; Owner: postgres
---
-
-CREATE TABLE public.nhap (
-    data character varying
-);
-
-
-ALTER TABLE public.nhap OWNER TO postgres;
-
---
--- TOC entry 227 (class 1259 OID 18141)
+-- TOC entry 220 (class 1259 OID 18686)
 -- Name: now_vehicle; Type: TABLE; Schema: public; Owner: postgres
 --
 
@@ -379,15 +513,15 @@ CREATE TABLE public.now_vehicle (
 ALTER TABLE public.now_vehicle OWNER TO postgres;
 
 --
--- TOC entry 237 (class 1259 OID 18205)
+-- TOC entry 221 (class 1259 OID 18689)
 -- Name: park; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.park (
     parkid integer NOT NULL,
-    vehicleid integer,
-    parkingspotid integer,
-    entry_time timestamp without time zone,
+    vehicleid integer NOT NULL,
+    parkingspotid integer NOT NULL,
+    entry_time timestamp without time zone DEFAULT now() NOT NULL,
     exit_time timestamp without time zone
 );
 
@@ -395,7 +529,7 @@ CREATE TABLE public.park (
 ALTER TABLE public.park OWNER TO postgres;
 
 --
--- TOC entry 236 (class 1259 OID 18204)
+-- TOC entry 222 (class 1259 OID 18693)
 -- Name: park_parkid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -411,8 +545,8 @@ CREATE SEQUENCE public.park_parkid_seq
 ALTER SEQUENCE public.park_parkid_seq OWNER TO postgres;
 
 --
--- TOC entry 4979 (class 0 OID 0)
--- Dependencies: 236
+-- TOC entry 4994 (class 0 OID 0)
+-- Dependencies: 222
 -- Name: park_parkid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -420,21 +554,21 @@ ALTER SEQUENCE public.park_parkid_seq OWNED BY public.park.parkid;
 
 
 --
--- TOC entry 231 (class 1259 OID 18165)
+-- TOC entry 223 (class 1259 OID 18694)
 -- Name: parking_lot; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.parking_lot (
     parkinglotid integer NOT NULL,
-    name character varying(16),
-    capacity integer
+    name character varying(16) NOT NULL,
+    capacity integer DEFAULT 0 NOT NULL
 );
 
 
 ALTER TABLE public.parking_lot OWNER TO postgres;
 
 --
--- TOC entry 230 (class 1259 OID 18164)
+-- TOC entry 224 (class 1259 OID 18698)
 -- Name: parking_lot_parkinglotid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -450,8 +584,8 @@ CREATE SEQUENCE public.parking_lot_parkinglotid_seq
 ALTER SEQUENCE public.parking_lot_parkinglotid_seq OWNER TO postgres;
 
 --
--- TOC entry 4980 (class 0 OID 0)
--- Dependencies: 230
+-- TOC entry 4995 (class 0 OID 0)
+-- Dependencies: 224
 -- Name: parking_lot_parkinglotid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -459,22 +593,22 @@ ALTER SEQUENCE public.parking_lot_parkinglotid_seq OWNED BY public.parking_lot.p
 
 
 --
--- TOC entry 235 (class 1259 OID 18187)
+-- TOC entry 225 (class 1259 OID 18699)
 -- Name: parking_spot; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.parking_spot (
     parkingspotid integer NOT NULL,
-    spottypeid integer,
-    parkinglotid integer,
-    occupied boolean DEFAULT false
+    spottypeid integer NOT NULL,
+    parkinglotid integer NOT NULL,
+    occupied boolean DEFAULT false NOT NULL
 );
 
 
 ALTER TABLE public.parking_spot OWNER TO postgres;
 
 --
--- TOC entry 234 (class 1259 OID 18186)
+-- TOC entry 226 (class 1259 OID 18703)
 -- Name: parking_spot_parkingspotid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -490,8 +624,8 @@ CREATE SEQUENCE public.parking_spot_parkingspotid_seq
 ALTER SEQUENCE public.parking_spot_parkingspotid_seq OWNER TO postgres;
 
 --
--- TOC entry 4981 (class 0 OID 0)
--- Dependencies: 234
+-- TOC entry 4996 (class 0 OID 0)
+-- Dependencies: 226
 -- Name: parking_spot_parkingspotid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -499,20 +633,20 @@ ALTER SEQUENCE public.parking_spot_parkingspotid_seq OWNED BY public.parking_spo
 
 
 --
--- TOC entry 229 (class 1259 OID 18158)
+-- TOC entry 227 (class 1259 OID 18704)
 -- Name: spot_type; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.spot_type (
     spottypeid integer NOT NULL,
-    size smallint
+    size smallint NOT NULL
 );
 
 
 ALTER TABLE public.spot_type OWNER TO postgres;
 
 --
--- TOC entry 228 (class 1259 OID 18157)
+-- TOC entry 228 (class 1259 OID 18707)
 -- Name: spot_type_spottypeid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -528,7 +662,7 @@ CREATE SEQUENCE public.spot_type_spottypeid_seq
 ALTER SEQUENCE public.spot_type_spottypeid_seq OWNER TO postgres;
 
 --
--- TOC entry 4982 (class 0 OID 0)
+-- TOC entry 4997 (class 0 OID 0)
 -- Dependencies: 228
 -- Name: spot_type_spottypeid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
@@ -537,15 +671,15 @@ ALTER SEQUENCE public.spot_type_spottypeid_seq OWNED BY public.spot_type.spottyp
 
 
 --
--- TOC entry 233 (class 1259 OID 18172)
+-- TOC entry 229 (class 1259 OID 18708)
 -- Name: staff; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.staff (
     staffid integer NOT NULL,
-    fullname character varying(256),
-    password character varying DEFAULT '12345678'::character varying,
-    parkinglotid integer,
+    fullname character varying(256) NOT NULL,
+    password character varying DEFAULT '12345678'::character varying NOT NULL,
+    parkinglotid integer NOT NULL,
     CONSTRAINT staff_password_check CHECK ((length((password)::text) >= 8))
 );
 
@@ -553,7 +687,7 @@ CREATE TABLE public.staff (
 ALTER TABLE public.staff OWNER TO postgres;
 
 --
--- TOC entry 232 (class 1259 OID 18171)
+-- TOC entry 230 (class 1259 OID 18715)
 -- Name: staff_staffid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -569,8 +703,8 @@ CREATE SEQUENCE public.staff_staffid_seq
 ALTER SEQUENCE public.staff_staffid_seq OWNER TO postgres;
 
 --
--- TOC entry 4983 (class 0 OID 0)
--- Dependencies: 232
+-- TOC entry 4998 (class 0 OID 0)
+-- Dependencies: 230
 -- Name: staff_staffid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -578,39 +712,39 @@ ALTER SEQUENCE public.staff_staffid_seq OWNED BY public.staff.staffid;
 
 
 --
--- TOC entry 221 (class 1259 OID 18093)
+-- TOC entry 231 (class 1259 OID 18716)
 -- Name: student; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.student (
     customerid integer NOT NULL,
-    fullname character varying(255),
-    mssv character varying(8),
-    balance integer DEFAULT 0,
-    password character varying DEFAULT '123456'::character varying
+    fullname character varying(255) NOT NULL,
+    mssv character varying(8) NOT NULL,
+    balance integer DEFAULT 0 NOT NULL,
+    password character varying DEFAULT '123456'::character varying NOT NULL
 );
 
 
 ALTER TABLE public.student OWNER TO postgres;
 
 --
--- TOC entry 223 (class 1259 OID 18109)
+-- TOC entry 232 (class 1259 OID 18723)
 -- Name: transaction; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.transaction (
     transactionid integer NOT NULL,
-    mssv character varying(8),
-    amount integer,
-    "time" timestamp without time zone,
-    tranaction_type boolean
+    amount integer NOT NULL,
+    "time" timestamp without time zone DEFAULT now() NOT NULL,
+    tranaction_type boolean NOT NULL,
+    customerid integer NOT NULL
 );
 
 
 ALTER TABLE public.transaction OWNER TO postgres;
 
 --
--- TOC entry 222 (class 1259 OID 18108)
+-- TOC entry 233 (class 1259 OID 18727)
 -- Name: transaction_transactionid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -626,8 +760,8 @@ CREATE SEQUENCE public.transaction_transactionid_seq
 ALTER SEQUENCE public.transaction_transactionid_seq OWNER TO postgres;
 
 --
--- TOC entry 4984 (class 0 OID 0)
--- Dependencies: 222
+-- TOC entry 4999 (class 0 OID 0)
+-- Dependencies: 233
 -- Name: transaction_transactionid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -635,15 +769,15 @@ ALTER SEQUENCE public.transaction_transactionid_seq OWNED BY public.transaction.
 
 
 --
--- TOC entry 225 (class 1259 OID 18121)
+-- TOC entry 234 (class 1259 OID 18728)
 -- Name: vehicle_type; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.vehicle_type (
     vehicletypeid integer NOT NULL,
-    name character varying(15),
-    price integer,
-    size smallint,
+    name character varying(15) NOT NULL,
+    price integer DEFAULT 0 NOT NULL,
+    size smallint NOT NULL,
     CONSTRAINT vehicle_type_price_check CHECK ((price >= 0))
 );
 
@@ -651,7 +785,7 @@ CREATE TABLE public.vehicle_type (
 ALTER TABLE public.vehicle_type OWNER TO postgres;
 
 --
--- TOC entry 224 (class 1259 OID 18120)
+-- TOC entry 235 (class 1259 OID 18733)
 -- Name: vehicle_type_vehicletypeid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -667,8 +801,8 @@ CREATE SEQUENCE public.vehicle_type_vehicletypeid_seq
 ALTER SEQUENCE public.vehicle_type_vehicletypeid_seq OWNER TO postgres;
 
 --
--- TOC entry 4985 (class 0 OID 0)
--- Dependencies: 224
+-- TOC entry 5000 (class 0 OID 0)
+-- Dependencies: 235
 -- Name: vehicle_type_vehicletypeid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -676,7 +810,7 @@ ALTER SEQUENCE public.vehicle_type_vehicletypeid_seq OWNED BY public.vehicle_typ
 
 
 --
--- TOC entry 226 (class 1259 OID 18140)
+-- TOC entry 236 (class 1259 OID 18734)
 -- Name: vehicle_vehicleid_seq; Type: SEQUENCE; Schema: public; Owner: postgres
 --
 
@@ -692,8 +826,8 @@ CREATE SEQUENCE public.vehicle_vehicleid_seq
 ALTER SEQUENCE public.vehicle_vehicleid_seq OWNER TO postgres;
 
 --
--- TOC entry 4986 (class 0 OID 0)
--- Dependencies: 226
+-- TOC entry 5001 (class 0 OID 0)
+-- Dependencies: 236
 -- Name: vehicle_vehicleid_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
 --
 
@@ -701,20 +835,28 @@ ALTER SEQUENCE public.vehicle_vehicleid_seq OWNED BY public.now_vehicle.vehiclei
 
 
 --
--- TOC entry 220 (class 1259 OID 18082)
+-- TOC entry 237 (class 1259 OID 18735)
 -- Name: visitor; Type: TABLE; Schema: public; Owner: postgres
 --
 
 CREATE TABLE public.visitor (
     customerid integer NOT NULL,
-    ticketid uuid DEFAULT gen_random_uuid()
+    ticketid uuid DEFAULT gen_random_uuid() NOT NULL
 );
 
 
 ALTER TABLE public.visitor OWNER TO postgres;
 
 --
--- TOC entry 4755 (class 2604 OID 18079)
+-- TOC entry 4758 (class 2604 OID 18739)
+-- Name: application id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.application ALTER COLUMN id SET DEFAULT nextval('public.application_id_seq'::regclass);
+
+
+--
+-- TOC entry 4759 (class 2604 OID 18740)
 -- Name: customer customerid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -722,7 +864,7 @@ ALTER TABLE ONLY public.customer ALTER COLUMN customerid SET DEFAULT nextval('pu
 
 
 --
--- TOC entry 4761 (class 2604 OID 18144)
+-- TOC entry 4760 (class 2604 OID 18741)
 -- Name: now_vehicle vehicleid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -730,7 +872,7 @@ ALTER TABLE ONLY public.now_vehicle ALTER COLUMN vehicleid SET DEFAULT nextval('
 
 
 --
--- TOC entry 4768 (class 2604 OID 18208)
+-- TOC entry 4761 (class 2604 OID 18742)
 -- Name: park parkid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -738,7 +880,7 @@ ALTER TABLE ONLY public.park ALTER COLUMN parkid SET DEFAULT nextval('public.par
 
 
 --
--- TOC entry 4763 (class 2604 OID 18168)
+-- TOC entry 4763 (class 2604 OID 18743)
 -- Name: parking_lot parkinglotid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -746,7 +888,7 @@ ALTER TABLE ONLY public.parking_lot ALTER COLUMN parkinglotid SET DEFAULT nextva
 
 
 --
--- TOC entry 4766 (class 2604 OID 18190)
+-- TOC entry 4765 (class 2604 OID 18744)
 -- Name: parking_spot parkingspotid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -754,7 +896,7 @@ ALTER TABLE ONLY public.parking_spot ALTER COLUMN parkingspotid SET DEFAULT next
 
 
 --
--- TOC entry 4762 (class 2604 OID 18161)
+-- TOC entry 4767 (class 2604 OID 18745)
 -- Name: spot_type spottypeid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -762,7 +904,7 @@ ALTER TABLE ONLY public.spot_type ALTER COLUMN spottypeid SET DEFAULT nextval('p
 
 
 --
--- TOC entry 4764 (class 2604 OID 18175)
+-- TOC entry 4768 (class 2604 OID 18746)
 -- Name: staff staffid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -770,7 +912,7 @@ ALTER TABLE ONLY public.staff ALTER COLUMN staffid SET DEFAULT nextval('public.s
 
 
 --
--- TOC entry 4759 (class 2604 OID 18112)
+-- TOC entry 4772 (class 2604 OID 18747)
 -- Name: transaction transactionid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -778,7 +920,7 @@ ALTER TABLE ONLY public.transaction ALTER COLUMN transactionid SET DEFAULT nextv
 
 
 --
--- TOC entry 4760 (class 2604 OID 18124)
+-- TOC entry 4774 (class 2604 OID 18748)
 -- Name: vehicle_type vehicletypeid; Type: DEFAULT; Schema: public; Owner: postgres
 --
 
@@ -786,8 +928,18 @@ ALTER TABLE ONLY public.vehicle_type ALTER COLUMN vehicletypeid SET DEFAULT next
 
 
 --
--- TOC entry 4953 (class 0 OID 18076)
--- Dependencies: 219
+-- TOC entry 4964 (class 0 OID 18677)
+-- Dependencies: 215
+-- Data for Name: application; Type: TABLE DATA; Schema: public; Owner: postgres
+--
+
+COPY public.application (id, fullname, datebirth, email) FROM stdin;
+\.
+
+
+--
+-- TOC entry 4966 (class 0 OID 18681)
+-- Dependencies: 217
 -- Data for Name: customer; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -814,423 +966,233 @@ COPY public.customer (customerid, customertype) FROM stdin;
 27	t
 28	t
 31	t
+32	f
+34	t
+35	t
+36	t
 \.
 
 
 --
--- TOC entry 4972 (class 0 OID 18394)
--- Dependencies: 238
--- Data for Name: nhap; Type: TABLE DATA; Schema: public; Owner: postgres
---
-
-COPY public.nhap (data) FROM stdin;
-22
-22
-\N
-\.
-
-
---
--- TOC entry 4961 (class 0 OID 18141)
--- Dependencies: 227
+-- TOC entry 4969 (class 0 OID 18686)
+-- Dependencies: 220
 -- Data for Name: now_vehicle; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.now_vehicle (vehicleid, vehicletypeid, license_plate, color, customerid) FROM stdin;
-28	1	37A1329	Red	22
-29	1	37A22253	Red	4
-30	3	3322	333	27
-31	1	37A56623	Red	28
-32	2	37A5622	Red	31
+67	1	37a	red	22
+72	2	\N	blue	22
+74	1	37a1	red	4
+75	2	\N	brown	22
+76	3	37a	red	22
+77	3	37aaa	red	34
+78	3	37A225	red	35
+79	1	red	37a	22
 \.
 
 
 --
--- TOC entry 4971 (class 0 OID 18205)
--- Dependencies: 237
+-- TOC entry 4970 (class 0 OID 18689)
+-- Dependencies: 221
 -- Data for Name: park; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.park (parkid, vehicleid, parkingspotid, entry_time, exit_time) FROM stdin;
-7	28	1501	2024-05-17 23:36:10.980034	2024-05-19 16:54:29.435576
-8	29	1502	2024-05-17 23:37:08.811128	2024-05-19 16:54:29.435576
-9	30	2051	2024-05-19 16:07:05.511445	2024-05-19 16:54:29.435576
-10	31	1503	2024-05-19 16:08:43.125933	2024-05-19 16:54:29.435576
-11	32	1502	2024-05-19 17:25:44.241925	\N
+52	77	2051	2024-05-31 09:07:54.438975	2024-05-31 09:09:27.270994
+53	78	2051	2024-05-31 09:22:19.139139	2024-05-31 09:29:14.855839
+54	79	1501	2024-05-31 09:30:21.983113	2024-05-31 09:32:54.269658
+61	67	1501	2024-05-31 10:14:56.292069	2024-05-31 15:51:06.123483
+62	67	1501	2024-05-31 16:10:00.280164	\N
+34	67	1502	2024-05-25 12:24:01.498882	2024-05-31 08:57:14.418882
+36	67	1502	2024-05-25 12:34:32.08139	2024-05-31 08:57:14.418882
+40	67	1501	2024-05-25 12:52:57.018588	2024-05-31 08:57:14.418882
+41	72	1501	2024-05-25 13:16:09.965423	2024-05-31 08:57:14.418882
+42	72	1501	2024-05-25 13:17:11.695253	2024-05-31 08:57:14.418882
+44	67	1501	2024-05-26 16:31:24.044915	2024-05-31 08:57:14.418882
+45	74	1502	2024-05-26 16:32:50.827904	2024-05-31 08:57:14.418882
+46	72	1501	2024-05-26 16:45:43.278512	2024-05-31 08:57:14.418882
+48	75	1501	2024-05-26 22:43:48.71691	2024-05-31 08:57:14.418882
+49	67	2051	2024-05-27 14:21:53.921852	2024-05-31 08:57:14.418882
+50	67	2051	2024-05-27 14:24:53.631101	2024-05-31 08:57:14.418882
+51	76	2051	2024-05-27 14:31:27.827354	2024-05-31 08:57:14.418882
 \.
 
 
 --
--- TOC entry 4965 (class 0 OID 18165)
--- Dependencies: 231
+-- TOC entry 4972 (class 0 OID 18694)
+-- Dependencies: 223
 -- Data for Name: parking_lot; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.parking_lot (parkinglotid, name, capacity) FROM stdin;
 1	B1	300
-2	D9	600
 3	D35	600
 4	C7	800
 \.
 
 
 --
--- TOC entry 4969 (class 0 OID 18187)
--- Dependencies: 235
+-- TOC entry 4974 (class 0 OID 18699)
+-- Dependencies: 225
 -- Data for Name: parking_spot; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FROM stdin;
-1502	1	4	t
+2121	3	4	f
+2122	3	4	f
+2123	3	4	f
+2124	3	4	f
+2125	3	4	f
+2126	3	4	f
+2127	3	4	f
+2128	3	4	f
+1502	1	4	f
+1501	1	4	t
+2129	3	4	f
+2130	3	4	f
+2162	3	4	f
+2163	3	4	f
+2164	3	4	f
+2165	3	4	f
+2166	3	4	f
+2167	3	4	f
+2168	3	4	f
+2169	3	4	f
+2170	3	4	f
+2171	3	4	f
 2051	3	4	f
-495	4	2	f
-496	4	2	f
-497	4	2	f
-498	4	2	f
-499	4	2	f
-500	4	2	f
-501	4	2	f
-502	4	2	f
-503	4	2	f
-504	4	2	f
-505	4	2	f
-506	4	2	f
-507	4	2	f
-508	4	2	f
-509	4	2	f
-510	4	2	f
-511	4	2	f
-512	4	2	f
-513	4	2	f
-514	4	2	f
-515	4	2	f
-516	4	2	f
-517	4	2	f
-518	4	2	f
-519	4	2	f
-520	4	2	f
-521	4	2	f
-522	4	2	f
-523	4	2	f
-524	4	2	f
-525	4	2	f
-526	4	2	f
-527	4	2	f
-528	4	2	f
-529	4	2	f
-530	4	2	f
-531	4	2	f
-532	4	2	f
-533	4	2	f
-534	4	2	f
-535	4	2	f
-536	4	2	f
-537	4	2	f
-538	4	2	f
-539	4	2	f
-540	4	2	f
-541	4	2	f
-542	4	2	f
-543	4	2	f
-544	4	2	f
-545	4	2	f
-546	4	2	f
-547	4	2	f
-548	4	2	f
-549	4	2	f
-550	4	2	f
-551	4	2	f
-552	4	2	f
-553	4	2	f
-554	4	2	f
-555	4	2	f
-556	4	2	f
-557	4	2	f
-558	4	2	f
-559	4	2	f
-560	4	2	f
-561	4	2	f
-562	4	2	f
-563	4	2	f
-564	4	2	f
-565	4	2	f
-566	4	2	f
-567	4	2	f
-568	4	2	f
-569	4	2	f
-570	4	2	f
-571	4	2	f
-572	4	2	f
-573	4	2	f
-574	4	2	f
-575	4	2	f
-576	4	2	f
-577	4	2	f
-578	4	2	f
-579	4	2	f
-580	4	2	f
-581	4	2	f
-582	4	2	f
-583	4	2	f
-584	4	2	f
-585	4	2	f
-586	4	2	f
-587	4	2	f
-588	4	2	f
-589	4	2	f
-590	4	2	f
-591	4	2	f
-592	4	2	f
-593	4	2	f
-594	4	2	f
-595	4	2	f
-596	4	2	f
-597	4	2	f
-598	4	2	f
-599	4	2	f
-600	4	2	f
-601	4	2	f
-602	4	2	f
-603	4	2	f
-604	4	2	f
-605	4	2	f
-606	4	2	f
-607	4	2	f
-608	4	2	f
-609	4	2	f
-610	4	2	f
-611	4	2	f
-612	4	2	f
-613	4	2	f
-614	4	2	f
-615	4	2	f
-616	4	2	f
-617	4	2	f
-618	4	2	f
-619	4	2	f
-620	4	2	f
-621	4	2	f
-622	4	2	f
-623	4	2	f
-624	4	2	f
-625	4	2	f
-626	4	2	f
-627	4	2	f
-628	4	2	f
-629	4	2	f
-630	4	2	f
-631	4	2	f
-632	4	2	f
-633	4	2	f
-634	4	2	f
-635	4	2	f
-636	4	2	f
-637	4	2	f
-638	4	2	f
-639	4	2	f
-640	4	2	f
-641	4	2	f
-642	4	2	f
-643	4	2	f
-644	4	2	f
-645	4	2	f
-646	4	2	f
-647	4	2	f
-648	4	2	f
-649	4	2	f
-650	4	2	f
-651	4	2	f
-652	4	2	f
-653	4	2	f
-654	4	2	f
-655	4	2	f
-656	4	2	f
-657	4	2	f
-658	4	2	f
-659	4	2	f
-660	4	2	f
-661	4	2	f
-662	4	2	f
-663	4	2	f
-664	4	2	f
-665	4	2	f
-666	4	2	f
-667	4	2	f
-668	4	2	f
-669	4	2	f
-670	4	2	f
-671	4	2	f
-672	4	2	f
-673	4	2	f
-674	4	2	f
-675	4	2	f
-676	4	2	f
-677	4	2	f
-678	4	2	f
-679	4	2	f
-680	4	2	f
-681	4	2	f
-682	4	2	f
-683	4	2	f
-684	4	2	f
-685	4	2	f
-686	4	2	f
-687	4	2	f
-688	4	2	f
-689	4	2	f
-690	4	2	f
-691	4	2	f
-692	4	2	f
-693	4	2	f
-694	4	2	f
-695	4	2	f
-696	4	2	f
-697	4	2	f
-698	4	2	f
-699	4	2	f
-700	4	2	f
-701	4	2	f
-702	4	2	f
-703	4	2	f
-704	4	2	f
-705	4	2	f
-706	4	2	f
-707	4	2	f
-708	4	2	f
-709	4	2	f
-710	4	2	f
-711	4	2	f
-712	4	2	f
-713	4	2	f
-714	4	2	f
-715	4	2	f
-716	4	2	f
-717	4	2	f
-718	4	2	f
-719	4	2	f
-720	4	2	f
-721	4	2	f
-722	4	2	f
-723	4	2	f
-724	4	2	f
-725	4	2	f
-726	4	2	f
-727	4	2	f
-728	4	2	f
-729	4	2	f
-730	4	2	f
-731	4	2	f
-732	4	2	f
-733	4	2	f
-734	4	2	f
-735	4	2	f
-736	4	2	f
-737	4	2	f
-738	4	2	f
-739	4	2	f
-740	4	2	f
-741	4	2	f
-742	4	2	f
-743	4	2	f
-744	4	2	f
-745	4	2	f
-746	4	2	f
-747	4	2	f
-748	4	2	f
-749	4	2	f
-750	4	2	f
-751	4	2	f
-752	4	2	f
-753	4	2	f
-754	4	2	f
-755	4	2	f
-756	4	2	f
-757	4	2	f
-758	4	2	f
-759	4	2	f
-760	4	2	f
-761	4	2	f
-762	4	2	f
-763	4	2	f
-764	4	2	f
-765	4	2	f
-766	4	2	f
-767	4	2	f
-768	4	2	f
-769	4	2	f
-770	4	2	f
-771	4	2	f
-772	4	2	f
-773	4	2	f
-774	4	2	f
-775	4	2	f
-776	4	2	f
-777	4	2	f
-778	4	2	f
-779	4	2	f
-780	4	2	f
-781	4	2	f
-782	4	2	f
-783	4	2	f
-784	4	2	f
-785	4	2	f
-786	4	2	f
-787	4	2	f
-788	4	2	f
-789	4	2	f
-790	4	2	f
-791	4	2	f
-792	4	2	f
-793	4	2	f
-794	4	2	f
-795	4	2	f
-796	4	2	f
-797	4	2	f
-798	4	2	f
-799	4	2	f
-800	4	2	f
-801	4	2	f
-802	4	2	f
-803	4	2	f
-804	4	2	f
-805	4	2	f
-806	4	2	f
-807	4	2	f
-808	4	2	f
-809	4	2	f
-810	4	2	f
-811	4	2	f
-812	4	2	f
-813	4	2	f
-814	4	2	f
-815	4	2	f
-816	4	2	f
-817	4	2	f
-818	4	2	f
-819	4	2	f
-820	4	2	f
-821	4	2	f
-822	4	2	f
-823	4	2	f
-824	4	2	f
-825	4	2	f
-826	4	2	f
-827	4	2	f
-828	4	2	f
-829	4	2	f
-830	4	2	f
-831	4	2	f
-832	4	2	f
-833	4	2	f
-834	4	2	f
-835	4	2	f
-836	4	2	f
-837	4	2	f
-838	4	2	f
-839	4	2	f
-840	4	2	f
-841	4	2	f
-842	4	2	f
+2172	3	4	f
+2173	3	4	f
+2174	3	4	f
+2175	3	4	f
+2176	3	4	f
+2177	3	4	f
+2178	3	4	f
+2179	3	4	f
+2180	3	4	f
+2181	3	4	f
+2182	3	4	f
+2183	3	4	f
+2184	3	4	f
+2185	3	4	f
+2186	3	4	f
+2187	3	4	f
+2188	3	4	f
+2189	3	4	f
+2190	3	4	f
+2191	3	4	f
+2192	3	4	f
+2193	3	4	f
+2194	3	4	f
+2195	3	4	f
+2196	3	4	f
+2197	3	4	f
+2198	3	4	f
+2199	3	4	f
+2200	3	4	f
+2201	3	4	f
+2202	3	4	f
+2203	3	4	f
+2204	3	4	f
+2205	3	4	f
+2206	3	4	f
+2207	3	4	f
+2208	3	4	f
+2209	3	4	f
+2210	3	4	f
+2211	3	4	f
+2212	3	4	f
+2213	3	4	f
+2214	3	4	f
+2215	3	4	f
+2216	3	4	f
+2217	3	4	f
+2218	3	4	f
+2219	3	4	f
+2220	3	4	f
+2221	3	4	f
+2222	3	4	f
+2223	3	4	f
+2224	3	4	f
+2225	3	4	f
+2226	3	4	f
+2227	3	4	f
+2228	3	4	f
+2229	3	4	f
+2230	3	4	f
+2231	3	4	f
+2232	3	4	f
+2233	3	4	f
+2234	3	4	f
+2235	3	4	f
+2236	3	4	f
+2237	3	4	f
+2238	3	4	f
+2239	3	4	f
+2240	3	4	f
+2241	3	4	f
+2242	3	4	f
+2243	3	4	f
+2244	3	4	f
+2245	3	4	f
+2246	3	4	f
+2247	3	4	f
+2248	3	4	f
+2249	3	4	f
+2250	3	4	f
+2251	3	4	f
+2252	3	4	f
+2253	3	4	f
+2254	3	4	f
+2255	3	4	f
+2256	3	4	f
+2257	3	4	f
+2258	3	4	f
+2259	3	4	f
+2260	3	4	f
+2261	3	4	f
+2262	3	4	f
+2263	3	4	f
+2264	3	4	f
+2265	3	4	f
+2266	3	4	f
+2267	3	4	f
+2268	3	4	f
+2269	3	4	f
+2270	3	4	f
+2271	3	4	f
+2272	3	4	f
+2273	3	4	f
+2274	3	4	f
+2275	3	4	f
+2276	3	4	f
+2277	3	4	f
+2278	3	4	f
+2279	3	4	f
+2280	3	4	f
+2281	3	4	f
+2282	3	4	f
+2283	3	4	f
+2284	3	4	f
+2285	3	4	f
+2286	3	4	f
+2287	3	4	f
+2288	3	4	f
+2289	3	4	f
+2290	3	4	f
+2291	3	4	f
+2292	3	4	f
+2131	3	4	f
+2132	3	4	f
+2133	3	4	f
+2134	3	4	f
+2135	3	4	f
+2136	3	4	f
+2137	3	4	f
+2138	3	4	f
+2052	3	4	f
+2139	3	4	f
+2140	3	4	f
 1	1	1	f
 2	1	1	f
 3	1	1	f
@@ -1469,321 +1431,6 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 236	2	1	f
 237	2	1	f
 238	2	1	f
-239	2	1	f
-240	2	1	f
-241	2	1	f
-242	2	1	f
-243	2	1	f
-244	2	1	f
-245	2	1	f
-246	2	1	f
-247	2	1	f
-248	2	1	f
-249	2	1	f
-250	2	1	f
-251	2	1	f
-252	2	1	f
-253	2	1	f
-254	2	1	f
-255	2	1	f
-256	2	1	f
-257	2	1	f
-258	2	1	f
-259	2	1	f
-260	2	1	f
-261	2	1	f
-262	2	1	f
-263	2	1	f
-264	2	1	f
-265	2	1	f
-266	2	1	f
-267	2	1	f
-268	2	1	f
-269	2	1	f
-270	2	1	f
-271	2	1	f
-272	2	1	f
-273	2	1	f
-274	2	1	f
-275	2	1	f
-276	2	1	f
-277	2	1	f
-278	2	1	f
-279	2	1	f
-280	2	1	f
-281	2	1	f
-282	2	1	f
-283	2	1	f
-284	2	1	f
-285	2	1	f
-286	2	1	f
-287	2	1	f
-288	2	1	f
-289	2	1	f
-290	2	1	f
-291	2	1	f
-292	2	1	f
-293	2	1	f
-294	2	1	f
-295	2	1	f
-296	2	1	f
-297	2	1	f
-298	2	1	f
-299	2	1	f
-300	2	1	f
-301	4	2	f
-302	4	2	f
-303	4	2	f
-304	4	2	f
-305	4	2	f
-306	4	2	f
-307	4	2	f
-308	4	2	f
-309	4	2	f
-310	4	2	f
-311	4	2	f
-312	4	2	f
-313	4	2	f
-314	4	2	f
-315	4	2	f
-316	4	2	f
-317	4	2	f
-318	4	2	f
-319	4	2	f
-320	4	2	f
-321	4	2	f
-322	4	2	f
-323	4	2	f
-324	4	2	f
-325	4	2	f
-326	4	2	f
-327	4	2	f
-328	4	2	f
-329	4	2	f
-330	4	2	f
-331	4	2	f
-332	4	2	f
-333	4	2	f
-334	4	2	f
-335	4	2	f
-336	4	2	f
-337	4	2	f
-338	4	2	f
-339	4	2	f
-340	4	2	f
-341	4	2	f
-342	4	2	f
-343	4	2	f
-344	4	2	f
-345	4	2	f
-346	4	2	f
-347	4	2	f
-348	4	2	f
-349	4	2	f
-350	4	2	f
-351	4	2	f
-352	4	2	f
-353	4	2	f
-354	4	2	f
-355	4	2	f
-356	4	2	f
-357	4	2	f
-358	4	2	f
-359	4	2	f
-360	4	2	f
-361	4	2	f
-362	4	2	f
-363	4	2	f
-364	4	2	f
-365	4	2	f
-366	4	2	f
-367	4	2	f
-368	4	2	f
-369	4	2	f
-370	4	2	f
-371	4	2	f
-372	4	2	f
-373	4	2	f
-374	4	2	f
-375	4	2	f
-376	4	2	f
-377	4	2	f
-378	4	2	f
-379	4	2	f
-380	4	2	f
-381	4	2	f
-382	4	2	f
-383	4	2	f
-384	4	2	f
-385	4	2	f
-386	4	2	f
-387	4	2	f
-388	4	2	f
-389	4	2	f
-390	4	2	f
-391	4	2	f
-392	4	2	f
-393	4	2	f
-394	4	2	f
-395	4	2	f
-396	4	2	f
-397	4	2	f
-398	4	2	f
-399	4	2	f
-400	4	2	f
-401	4	2	f
-402	4	2	f
-403	4	2	f
-404	4	2	f
-405	4	2	f
-406	4	2	f
-407	4	2	f
-408	4	2	f
-409	4	2	f
-410	4	2	f
-411	4	2	f
-412	4	2	f
-413	4	2	f
-414	4	2	f
-415	4	2	f
-416	4	2	f
-417	4	2	f
-418	4	2	f
-419	4	2	f
-420	4	2	f
-421	4	2	f
-422	4	2	f
-423	4	2	f
-424	4	2	f
-425	4	2	f
-426	4	2	f
-427	4	2	f
-428	4	2	f
-429	4	2	f
-430	4	2	f
-431	4	2	f
-432	4	2	f
-433	4	2	f
-434	4	2	f
-435	4	2	f
-436	4	2	f
-437	4	2	f
-438	4	2	f
-439	4	2	f
-440	4	2	f
-441	4	2	f
-442	4	2	f
-443	4	2	f
-444	4	2	f
-445	4	2	f
-446	4	2	f
-447	4	2	f
-448	4	2	f
-449	4	2	f
-1501	1	4	f
-450	4	2	f
-451	4	2	f
-452	4	2	f
-453	4	2	f
-454	4	2	f
-455	4	2	f
-456	4	2	f
-457	4	2	f
-458	4	2	f
-459	4	2	f
-460	4	2	f
-461	4	2	f
-462	4	2	f
-463	4	2	f
-464	4	2	f
-465	4	2	f
-466	4	2	f
-467	4	2	f
-468	4	2	f
-469	4	2	f
-470	4	2	f
-471	4	2	f
-472	4	2	f
-473	4	2	f
-474	4	2	f
-475	4	2	f
-476	4	2	f
-477	4	2	f
-478	4	2	f
-479	4	2	f
-480	4	2	f
-481	4	2	f
-482	4	2	f
-483	4	2	f
-484	4	2	f
-485	4	2	f
-486	4	2	f
-487	4	2	f
-488	4	2	f
-489	4	2	f
-490	4	2	f
-491	4	2	f
-492	4	2	f
-493	4	2	f
-494	4	2	f
-843	4	2	f
-844	4	2	f
-845	4	2	f
-846	4	2	f
-847	4	2	f
-848	4	2	f
-849	4	2	f
-850	4	2	f
-851	4	2	f
-852	4	2	f
-853	4	2	f
-854	4	2	f
-855	4	2	f
-856	4	2	f
-857	4	2	f
-858	4	2	f
-859	4	2	f
-860	4	2	f
-861	4	2	f
-862	4	2	f
-863	4	2	f
-864	4	2	f
-865	4	2	f
-866	4	2	f
-867	4	2	f
-868	4	2	f
-869	4	2	f
-870	4	2	f
-871	4	2	f
-872	4	2	f
-873	4	2	f
-874	4	2	f
-875	4	2	f
-876	4	2	f
-877	4	2	f
-878	4	2	f
-879	4	2	f
-880	4	2	f
-881	4	2	f
-882	4	2	f
-883	4	2	f
-884	4	2	f
-885	4	2	f
-886	4	2	f
-887	4	2	f
-888	4	2	f
-889	4	2	f
-890	4	2	f
-891	4	2	f
-892	4	2	f
-893	4	2	f
-894	4	2	f
-895	4	2	f
-896	4	2	f
-897	4	2	f
-898	4	2	f
-899	4	2	f
-900	4	2	f
 901	1	3	f
 902	1	3	f
 903	1	3	f
@@ -2274,14 +1921,12 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 1388	4	3	f
 1389	4	3	f
 1390	4	3	f
-1391	4	3	f
 1392	4	3	f
 1393	4	3	f
 1394	4	3	f
 1395	4	3	f
 1396	4	3	f
 1397	4	3	f
-1398	4	3	f
 1399	4	3	f
 1400	4	3	f
 1401	4	3	f
@@ -2361,6 +2006,89 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 1475	4	3	f
 1476	4	3	f
 1477	4	3	f
+2141	3	4	f
+2142	3	4	f
+2143	3	4	f
+2144	3	4	f
+2145	3	4	f
+2146	3	4	f
+2147	3	4	f
+2148	3	4	f
+2149	3	4	f
+2150	3	4	f
+2151	3	4	f
+2152	3	4	f
+2153	3	4	f
+2154	3	4	f
+2155	3	4	f
+2156	3	4	f
+2157	3	4	f
+2158	3	4	f
+2159	3	4	f
+2160	3	4	f
+2161	3	4	f
+239	2	1	f
+240	2	1	f
+241	2	1	f
+242	2	1	f
+243	2	1	f
+244	2	1	f
+245	2	1	f
+246	2	1	f
+247	2	1	f
+248	2	1	f
+249	2	1	f
+250	2	1	f
+251	2	1	f
+252	2	1	f
+253	2	1	f
+254	2	1	f
+255	2	1	f
+256	2	1	f
+257	2	1	f
+258	2	1	f
+259	2	1	f
+260	2	1	f
+261	2	1	f
+262	2	1	f
+263	2	1	f
+264	2	1	f
+265	2	1	f
+266	2	1	f
+267	2	1	f
+268	2	1	f
+269	2	1	f
+270	2	1	f
+271	2	1	f
+272	2	1	f
+273	2	1	f
+274	2	1	f
+275	2	1	f
+276	2	1	f
+277	2	1	f
+278	2	1	f
+279	2	1	f
+280	2	1	f
+281	2	1	f
+282	2	1	f
+283	2	1	f
+284	2	1	f
+285	2	1	f
+286	2	1	f
+287	2	1	f
+288	2	1	f
+289	2	1	f
+290	2	1	f
+291	2	1	f
+292	2	1	f
+293	2	1	f
+294	2	1	f
+295	2	1	f
+296	2	1	f
+297	2	1	f
+298	2	1	f
+299	2	1	f
+300	2	1	f
 1478	4	3	f
 1479	4	3	f
 1480	4	3	f
@@ -2728,7 +2456,6 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 1844	2	4	f
 1845	2	4	f
 1846	2	4	f
-1847	2	4	f
 1848	2	4	f
 1849	2	4	f
 1850	2	4	f
@@ -2835,7 +2562,6 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 1951	2	4	f
 1952	2	4	f
 1953	2	4	f
-1954	2	4	f
 1955	2	4	f
 1956	2	4	f
 1957	2	4	f
@@ -2882,41 +2608,6 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 1998	2	4	f
 1999	2	4	f
 2000	2	4	f
-2001	2	4	f
-2002	2	4	f
-2003	2	4	f
-2004	2	4	f
-2005	2	4	f
-2006	2	4	f
-2007	2	4	f
-2008	2	4	f
-2009	2	4	f
-2010	2	4	f
-2011	2	4	f
-2012	2	4	f
-2013	2	4	f
-2014	2	4	f
-2015	2	4	f
-2016	2	4	f
-2017	2	4	f
-2018	2	4	f
-2019	2	4	f
-2020	2	4	f
-2021	2	4	f
-2022	2	4	f
-2023	2	4	f
-2024	2	4	f
-2025	2	4	f
-2026	2	4	f
-2027	2	4	f
-2028	2	4	f
-2029	2	4	f
-2030	2	4	f
-2031	2	4	f
-2032	2	4	f
-2033	2	4	f
-2034	2	4	f
-2035	2	4	f
 2036	2	4	f
 2037	2	4	f
 2038	2	4	f
@@ -2932,7 +2623,6 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 2048	2	4	f
 2049	2	4	f
 2050	2	4	f
-2052	3	4	f
 2053	3	4	f
 2054	3	4	f
 2055	3	4	f
@@ -2978,6 +2668,8 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 2095	3	4	f
 2096	3	4	f
 2097	3	4	f
+1398	4	3	f
+1954	2	4	f
 2098	3	4	f
 2099	3	4	f
 2100	3	4	f
@@ -3001,178 +2693,43 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 2118	3	4	f
 2119	3	4	f
 2120	3	4	f
-2121	3	4	f
-2122	3	4	f
-2123	3	4	f
-2124	3	4	f
-2125	3	4	f
-2126	3	4	f
-2127	3	4	f
-2128	3	4	f
-2129	3	4	f
-2130	3	4	f
-2131	3	4	f
-2132	3	4	f
-2133	3	4	f
-2134	3	4	f
-2135	3	4	f
-2136	3	4	f
-2137	3	4	f
-2138	3	4	f
-2139	3	4	f
-2140	3	4	f
-2141	3	4	f
-2142	3	4	f
-2143	3	4	f
-2144	3	4	f
-2145	3	4	f
-2146	3	4	f
-2147	3	4	f
-2148	3	4	f
-2149	3	4	f
-2150	3	4	f
-2151	3	4	f
-2152	3	4	f
-2153	3	4	f
-2154	3	4	f
-2155	3	4	f
-2156	3	4	f
-2157	3	4	f
-2158	3	4	f
-2159	3	4	f
-2160	3	4	f
-2161	3	4	f
-2162	3	4	f
-2163	3	4	f
-2164	3	4	f
-2165	3	4	f
-2166	3	4	f
-2167	3	4	f
-2168	3	4	f
-2169	3	4	f
-2170	3	4	f
-2171	3	4	f
-2172	3	4	f
-2173	3	4	f
-2174	3	4	f
-2175	3	4	f
-2176	3	4	f
-2177	3	4	f
-2178	3	4	f
-2179	3	4	f
-2180	3	4	f
-2181	3	4	f
-2182	3	4	f
-2183	3	4	f
-2184	3	4	f
-2185	3	4	f
-2186	3	4	f
-2187	3	4	f
-2188	3	4	f
-2189	3	4	f
-2190	3	4	f
-2191	3	4	f
-2192	3	4	f
-2193	3	4	f
-2194	3	4	f
-2195	3	4	f
-2196	3	4	f
-2197	3	4	f
-2198	3	4	f
-2199	3	4	f
-2200	3	4	f
-2201	3	4	f
-2202	3	4	f
-2203	3	4	f
-2204	3	4	f
-2205	3	4	f
-2206	3	4	f
-2207	3	4	f
-2208	3	4	f
-2209	3	4	f
-2210	3	4	f
-2211	3	4	f
-2212	3	4	f
-2213	3	4	f
-2214	3	4	f
-2215	3	4	f
-2216	3	4	f
-2217	3	4	f
-2218	3	4	f
-2219	3	4	f
-2220	3	4	f
-2221	3	4	f
-2222	3	4	f
-2223	3	4	f
-2224	3	4	f
-2225	3	4	f
-2226	3	4	f
-2227	3	4	f
-2228	3	4	f
-2229	3	4	f
-2230	3	4	f
-2231	3	4	f
-2232	3	4	f
-2233	3	4	f
-2234	3	4	f
-2235	3	4	f
-2236	3	4	f
-2237	3	4	f
-2238	3	4	f
-2239	3	4	f
-2240	3	4	f
-2241	3	4	f
-2242	3	4	f
-2243	3	4	f
-2244	3	4	f
-2245	3	4	f
-2246	3	4	f
-2247	3	4	f
-2248	3	4	f
-2249	3	4	f
-2250	3	4	f
-2251	3	4	f
-2252	3	4	f
-2253	3	4	f
-2254	3	4	f
-2255	3	4	f
-2256	3	4	f
-2257	3	4	f
-2258	3	4	f
-2259	3	4	f
-2260	3	4	f
-2261	3	4	f
-2262	3	4	f
-2263	3	4	f
-2264	3	4	f
-2265	3	4	f
-2266	3	4	f
-2267	3	4	f
-2268	3	4	f
-2269	3	4	f
-2270	3	4	f
-2271	3	4	f
-2272	3	4	f
-2273	3	4	f
-2274	3	4	f
-2275	3	4	f
-2276	3	4	f
-2277	3	4	f
-2278	3	4	f
-2279	3	4	f
-2280	3	4	f
-2281	3	4	f
-2282	3	4	f
-2283	3	4	f
-2284	3	4	f
-2285	3	4	f
-2286	3	4	f
-2287	3	4	f
-2288	3	4	f
-2289	3	4	f
-2290	3	4	f
-2291	3	4	f
-2292	3	4	f
+1391	4	3	f
+1847	2	4	f
+2001	2	4	f
+2002	2	4	f
+2003	2	4	f
+2004	2	4	f
+2005	2	4	f
+2006	2	4	f
+2007	2	4	f
+2008	2	4	f
+2009	2	4	f
+2010	2	4	f
+2011	2	4	f
+2012	2	4	f
+2013	2	4	f
+2014	2	4	f
+2015	2	4	f
+2016	2	4	f
+2017	2	4	f
+2018	2	4	f
+2019	2	4	f
+2020	2	4	f
+2021	2	4	f
+2022	2	4	f
+2023	2	4	f
+2024	2	4	f
+2025	2	4	f
+2026	2	4	f
+2027	2	4	f
+2028	2	4	f
+2029	2	4	f
+2030	2	4	f
+2031	2	4	f
+2032	2	4	f
+2033	2	4	f
+2034	2	4	f
+2035	2	4	f
 2293	3	4	f
 2294	3	4	f
 2295	3	4	f
@@ -3185,8 +2742,8 @@ COPY public.parking_spot (parkingspotid, spottypeid, parkinglotid, occupied) FRO
 
 
 --
--- TOC entry 4963 (class 0 OID 18158)
--- Dependencies: 229
+-- TOC entry 4976 (class 0 OID 18704)
+-- Dependencies: 227
 -- Data for Name: spot_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -3199,48 +2756,56 @@ COPY public.spot_type (spottypeid, size) FROM stdin;
 
 
 --
--- TOC entry 4967 (class 0 OID 18172)
--- Dependencies: 233
+-- TOC entry 4978 (class 0 OID 18708)
+-- Dependencies: 229
 -- Data for Name: staff; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.staff (staffid, fullname, password, parkinglotid) FROM stdin;
 2	Nguyễn Nhân Viên	12345678	1
 3	Nguyễn Đức Quân	12345678	4
+5	Nguyễn Đức Nghĩa	12345678	4
 \.
 
 
 --
--- TOC entry 4955 (class 0 OID 18093)
--- Dependencies: 221
+-- TOC entry 4980 (class 0 OID 18716)
+-- Dependencies: 231
 -- Data for Name: student; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
 COPY public.student (customerid, fullname, mssv, balance, password) FROM stdin;
-3	Le Van Anh	20225882	0	123456
-4	Tran Minh Tuan	20225883	100000	123456
-5	Pham Thi Mai Anh\n	20225884	100000	123456
-17	Nguyễn Văn Dũng	20225879	0	123456
-20	Nguyễn Hồng Nhung	20221555	0	123456
-22	Nguyễn Đức Mạnh	20225880	200000	1234567
+5	Pham Thi Mai Anh\n	20225884	87000	123456
+4	Tran Minh Tuan	20225883	0	123456
+36	Ngô Anh Tú	20220029	100000	123456
+22	Nguyễn Văn Mạnh	20225880	146000	123456
+3	Le Van Anh	20225882	100000	123456
+17	Nguyễn Văn Dũng	20225879	100000	123456
+20	Nguyễn Hồng Nhung	20221555	100000	123456
+32	Văn Đức Cường	20220021	100000	123456
 \.
 
 
 --
--- TOC entry 4957 (class 0 OID 18109)
--- Dependencies: 223
+-- TOC entry 4981 (class 0 OID 18723)
+-- Dependencies: 232
 -- Data for Name: transaction; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
-COPY public.transaction (transactionid, mssv, amount, "time", tranaction_type) FROM stdin;
-7	20225880	100000	2024-05-10 18:02:45.921968	t
-8	20225880	100000	2024-05-11 23:39:26.505982	t
+COPY public.transaction (transactionid, amount, "time", tranaction_type, customerid) FROM stdin;
+51	-3000	2024-05-31 10:14:56.292069	t	22
+52	50000	2024-05-31 10:22:04.041037	f	22
+53	23000	2024-05-31 10:24:03.542639	t	22
+54	3000	2024-05-31 16:10:00.280164	f	22
+55	20000	2024-06-01 10:08:38.238722	t	22
+56	20000	2024-06-01 10:10:04.135523	t	22
+57	100000	2024-06-01 10:12:25.073966	t	36
 \.
 
 
 --
--- TOC entry 4959 (class 0 OID 18121)
--- Dependencies: 225
+-- TOC entry 4983 (class 0 OID 18728)
+-- Dependencies: 234
 -- Data for Name: vehicle_type; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -3252,8 +2817,8 @@ COPY public.vehicle_type (vehicletypeid, name, price, size) FROM stdin;
 
 
 --
--- TOC entry 4954 (class 0 OID 18082)
--- Dependencies: 220
+-- TOC entry 4986 (class 0 OID 18735)
+-- Dependencies: 237
 -- Data for Name: visitor; Type: TABLE DATA; Schema: public; Owner: postgres
 --
 
@@ -3269,21 +2834,32 @@ COPY public.visitor (customerid, ticketid) FROM stdin;
 27	eeb3670d-6942-4993-9cc5-34a57e858d11
 28	9d6be76d-8ccf-446e-b23d-9b72e67622cb
 31	373b4f8e-395b-4327-a43f-1ca05928061d
+34	3d065c0d-00f2-43b5-a00c-0b2567e0273c
+35	f12d390f-4c30-4716-912c-d098ed1f48f7
 \.
 
 
 --
--- TOC entry 4987 (class 0 OID 0)
+-- TOC entry 5002 (class 0 OID 0)
+-- Dependencies: 216
+-- Name: application_id_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
+--
+
+SELECT pg_catalog.setval('public.application_id_seq', 1, true);
+
+
+--
+-- TOC entry 5003 (class 0 OID 0)
 -- Dependencies: 218
 -- Name: customer_customerid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.customer_customerid_seq', 31, true);
+SELECT pg_catalog.setval('public.customer_customerid_seq', 36, true);
 
 
 --
--- TOC entry 4988 (class 0 OID 0)
--- Dependencies: 217
+-- TOC entry 5004 (class 0 OID 0)
+-- Dependencies: 219
 -- Name: customerid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -3291,26 +2867,26 @@ SELECT pg_catalog.setval('public.customerid_seq', 1, false);
 
 
 --
--- TOC entry 4989 (class 0 OID 0)
--- Dependencies: 236
+-- TOC entry 5005 (class 0 OID 0)
+-- Dependencies: 222
 -- Name: park_parkid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.park_parkid_seq', 11, true);
+SELECT pg_catalog.setval('public.park_parkid_seq', 62, true);
 
 
 --
--- TOC entry 4990 (class 0 OID 0)
--- Dependencies: 230
+-- TOC entry 5006 (class 0 OID 0)
+-- Dependencies: 224
 -- Name: parking_lot_parkinglotid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.parking_lot_parkinglotid_seq', 1, false);
+SELECT pg_catalog.setval('public.parking_lot_parkinglotid_seq', 2, true);
 
 
 --
--- TOC entry 4991 (class 0 OID 0)
--- Dependencies: 234
+-- TOC entry 5007 (class 0 OID 0)
+-- Dependencies: 226
 -- Name: parking_spot_parkingspotid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -3318,7 +2894,7 @@ SELECT pg_catalog.setval('public.parking_spot_parkingspotid_seq', 2300, true);
 
 
 --
--- TOC entry 4992 (class 0 OID 0)
+-- TOC entry 5008 (class 0 OID 0)
 -- Dependencies: 228
 -- Name: spot_type_spottypeid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
@@ -3327,26 +2903,26 @@ SELECT pg_catalog.setval('public.spot_type_spottypeid_seq', 1, false);
 
 
 --
--- TOC entry 4993 (class 0 OID 0)
--- Dependencies: 232
+-- TOC entry 5009 (class 0 OID 0)
+-- Dependencies: 230
 -- Name: staff_staffid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.staff_staffid_seq', 3, true);
+SELECT pg_catalog.setval('public.staff_staffid_seq', 6, true);
 
 
 --
--- TOC entry 4994 (class 0 OID 0)
--- Dependencies: 222
+-- TOC entry 5010 (class 0 OID 0)
+-- Dependencies: 233
 -- Name: transaction_transactionid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.transaction_transactionid_seq', 8, true);
+SELECT pg_catalog.setval('public.transaction_transactionid_seq', 57, true);
 
 
 --
--- TOC entry 4995 (class 0 OID 0)
--- Dependencies: 224
+-- TOC entry 5011 (class 0 OID 0)
+-- Dependencies: 235
 -- Name: vehicle_type_vehicletypeid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
@@ -3354,16 +2930,25 @@ SELECT pg_catalog.setval('public.vehicle_type_vehicletypeid_seq', 1, false);
 
 
 --
--- TOC entry 4996 (class 0 OID 0)
--- Dependencies: 226
+-- TOC entry 5012 (class 0 OID 0)
+-- Dependencies: 236
 -- Name: vehicle_vehicleid_seq; Type: SEQUENCE SET; Schema: public; Owner: postgres
 --
 
-SELECT pg_catalog.setval('public.vehicle_vehicleid_seq', 32, true);
+SELECT pg_catalog.setval('public.vehicle_vehicleid_seq', 81, true);
 
 
 --
--- TOC entry 4772 (class 2606 OID 18081)
+-- TOC entry 4781 (class 2606 OID 18750)
+-- Name: application application_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.application
+    ADD CONSTRAINT application_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4783 (class 2606 OID 18752)
 -- Name: customer customer_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3372,7 +2957,7 @@ ALTER TABLE ONLY public.customer
 
 
 --
--- TOC entry 4794 (class 2606 OID 18210)
+-- TOC entry 4787 (class 2606 OID 18754)
 -- Name: park park_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3381,7 +2966,7 @@ ALTER TABLE ONLY public.park
 
 
 --
--- TOC entry 4788 (class 2606 OID 18170)
+-- TOC entry 4789 (class 2606 OID 18756)
 -- Name: parking_lot parking_lot_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3390,7 +2975,7 @@ ALTER TABLE ONLY public.parking_lot
 
 
 --
--- TOC entry 4792 (class 2606 OID 18193)
+-- TOC entry 4791 (class 2606 OID 18758)
 -- Name: parking_spot parking_spot_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3399,7 +2984,7 @@ ALTER TABLE ONLY public.parking_spot
 
 
 --
--- TOC entry 4786 (class 2606 OID 18163)
+-- TOC entry 4793 (class 2606 OID 18760)
 -- Name: spot_type spot_type_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3408,7 +2993,7 @@ ALTER TABLE ONLY public.spot_type
 
 
 --
--- TOC entry 4790 (class 2606 OID 18180)
+-- TOC entry 4795 (class 2606 OID 18762)
 -- Name: staff staff_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3417,7 +3002,7 @@ ALTER TABLE ONLY public.staff
 
 
 --
--- TOC entry 4776 (class 2606 OID 18101)
+-- TOC entry 4797 (class 2606 OID 18764)
 -- Name: student student_mssv_key; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3426,25 +3011,25 @@ ALTER TABLE ONLY public.student
 
 
 --
--- TOC entry 4778 (class 2606 OID 18099)
+-- TOC entry 4778 (class 2606 OID 18765)
+-- Name: student student_password_check; Type: CHECK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE public.student
+    ADD CONSTRAINT student_password_check CHECK ((length((password)::text) >= 6)) NOT VALID;
+
+
+--
+-- TOC entry 4799 (class 2606 OID 18767)
 -- Name: student student_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.student
-    ADD CONSTRAINT student_pkey PRIMARY KEY (customerid);
+    ADD CONSTRAINT student_pkey PRIMARY KEY (mssv);
 
 
 --
--- TOC entry 4782 (class 2606 OID 18390)
--- Name: now_vehicle vehicle_customerid_key; Type: CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.now_vehicle
-    ADD CONSTRAINT vehicle_customerid_key UNIQUE (customerid);
-
-
---
--- TOC entry 4784 (class 2606 OID 18388)
+-- TOC entry 4785 (class 2606 OID 18769)
 -- Name: now_vehicle vehicle_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3453,7 +3038,7 @@ ALTER TABLE ONLY public.now_vehicle
 
 
 --
--- TOC entry 4780 (class 2606 OID 18127)
+-- TOC entry 4801 (class 2606 OID 18771)
 -- Name: vehicle_type vehicle_type_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3462,32 +3047,40 @@ ALTER TABLE ONLY public.vehicle_type
 
 
 --
--- TOC entry 4774 (class 2606 OID 18087)
+-- TOC entry 4803 (class 2606 OID 18830)
 -- Name: visitor visitor_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
 --
 
 ALTER TABLE ONLY public.visitor
-    ADD CONSTRAINT visitor_pkey PRIMARY KEY (customerid);
+    ADD CONSTRAINT visitor_pkey PRIMARY KEY (ticketid);
 
 
 --
--- TOC entry 4806 (class 2620 OID 18574)
--- Name: park auto_isnot_occupied; Type: TRIGGER; Schema: public; Owner: postgres
---
-
-CREATE TRIGGER auto_isnot_occupied BEFORE UPDATE OF exit_time ON public.park FOR EACH ROW EXECUTE FUNCTION public.trigger_customer_out();
-
-
---
--- TOC entry 4807 (class 2620 OID 18563)
+-- TOC entry 4814 (class 2620 OID 18772)
 -- Name: park auto_update_occupied; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
-CREATE TRIGGER auto_update_occupied AFTER INSERT ON public.park FOR EACH ROW EXECUTE FUNCTION public.is_occuppied();
+CREATE TRIGGER auto_update_occupied AFTER INSERT ON public.park FOR EACH ROW WHEN ((new.exit_time IS NULL)) EXECUTE FUNCTION public.is_occuppied();
 
 
 --
--- TOC entry 4805 (class 2620 OID 18238)
+-- TOC entry 4818 (class 2620 OID 18773)
+-- Name: student delete_student; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER delete_student AFTER DELETE ON public.student FOR EACH ROW EXECUTE FUNCTION public.delete_student();
+
+
+--
+-- TOC entry 4820 (class 2620 OID 18774)
+-- Name: visitor delete_visitor; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER delete_visitor AFTER DELETE ON public.visitor FOR EACH ROW EXECUTE FUNCTION public.delete_visitor();
+
+
+--
+-- TOC entry 4819 (class 2620 OID 18775)
 -- Name: student payin_log; Type: TRIGGER; Schema: public; Owner: postgres
 --
 
@@ -3495,7 +3088,40 @@ CREATE TRIGGER payin_log AFTER UPDATE OF balance ON public.student FOR EACH ROW 
 
 
 --
--- TOC entry 4803 (class 2606 OID 18211)
+-- TOC entry 4815 (class 2620 OID 18776)
+-- Name: park set_exit_time_trigger; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER set_exit_time_trigger AFTER UPDATE OF exit_time ON public.park FOR EACH ROW WHEN (((old.exit_time IS NULL) AND (new.exit_time IS NOT NULL))) EXECUTE FUNCTION public.update_parking_spot_status();
+
+
+--
+-- TOC entry 4816 (class 2620 OID 18777)
+-- Name: park trigger_check_one_vehicle_per_student; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER trigger_check_one_vehicle_per_student BEFORE INSERT ON public.park FOR EACH ROW EXECUTE FUNCTION public.check_one_vehicle_per_student();
+
+
+--
+-- TOC entry 4817 (class 2620 OID 18778)
+-- Name: parking_spot update_capacity; Type: TRIGGER; Schema: public; Owner: postgres
+--
+
+CREATE TRIGGER update_capacity AFTER INSERT ON public.parking_spot FOR EACH ROW EXECUTE FUNCTION public.update_capacity();
+
+
+--
+-- TOC entry 4812 (class 2606 OID 18779)
+-- Name: transaction Customer; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.transaction
+    ADD CONSTRAINT "Customer" FOREIGN KEY (customerid) REFERENCES public.customer(customerid) NOT VALID;
+
+
+--
+-- TOC entry 4806 (class 2606 OID 18784)
 -- Name: park park_parkingspotid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3504,7 +3130,7 @@ ALTER TABLE ONLY public.park
 
 
 --
--- TOC entry 4804 (class 2606 OID 18566)
+-- TOC entry 4807 (class 2606 OID 18789)
 -- Name: park park_vehicleid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3513,7 +3139,7 @@ ALTER TABLE ONLY public.park
 
 
 --
--- TOC entry 4801 (class 2606 OID 18199)
+-- TOC entry 4808 (class 2606 OID 18794)
 -- Name: parking_spot parking_spot_parkinglotid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3522,7 +3148,7 @@ ALTER TABLE ONLY public.parking_spot
 
 
 --
--- TOC entry 4802 (class 2606 OID 18194)
+-- TOC entry 4809 (class 2606 OID 18799)
 -- Name: parking_spot parking_spot_spottypeid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3531,7 +3157,7 @@ ALTER TABLE ONLY public.parking_spot
 
 
 --
--- TOC entry 4800 (class 2606 OID 18181)
+-- TOC entry 4810 (class 2606 OID 18804)
 -- Name: staff staff_parkinglotid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3540,7 +3166,7 @@ ALTER TABLE ONLY public.staff
 
 
 --
--- TOC entry 4796 (class 2606 OID 18102)
+-- TOC entry 4811 (class 2606 OID 18809)
 -- Name: student student_customerid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3549,16 +3175,7 @@ ALTER TABLE ONLY public.student
 
 
 --
--- TOC entry 4797 (class 2606 OID 18375)
--- Name: transaction transaction_mssv_fkey1; Type: FK CONSTRAINT; Schema: public; Owner: postgres
---
-
-ALTER TABLE ONLY public.transaction
-    ADD CONSTRAINT transaction_mssv_fkey1 FOREIGN KEY (mssv) REFERENCES public.student(mssv) ON DELETE CASCADE;
-
-
---
--- TOC entry 4798 (class 2606 OID 18147)
+-- TOC entry 4804 (class 2606 OID 18814)
 -- Name: now_vehicle vehicle_customerid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3567,7 +3184,7 @@ ALTER TABLE ONLY public.now_vehicle
 
 
 --
--- TOC entry 4799 (class 2606 OID 18152)
+-- TOC entry 4805 (class 2606 OID 18819)
 -- Name: now_vehicle vehicle_vehicletypeid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3576,7 +3193,7 @@ ALTER TABLE ONLY public.now_vehicle
 
 
 --
--- TOC entry 4795 (class 2606 OID 18088)
+-- TOC entry 4813 (class 2606 OID 18824)
 -- Name: visitor visitor_customerid_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
 --
 
@@ -3584,7 +3201,7 @@ ALTER TABLE ONLY public.visitor
     ADD CONSTRAINT visitor_customerid_fkey FOREIGN KEY (customerid) REFERENCES public.customer(customerid);
 
 
--- Completed on 2024-05-23 16:35:02
+-- Completed on 2024-06-05 10:45:25
 
 --
 -- PostgreSQL database dump complete
