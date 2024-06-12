@@ -562,7 +562,6 @@ def admin_login():
         print("\033[1m[ADMIN LOGIN]\033[0m")
         # Print with italic style
         print("\033[3mDont login if you are not admin.\033[0m")
-        
         if int(input("Continue (1/0): ")): 
             password = getpass("Password: ")
             if password == '123456':
