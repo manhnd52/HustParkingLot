@@ -141,8 +141,7 @@ def balance():
     if not balance[0]: 
         print("Bạn đã hết tiền. Xin vui lòng nạp thêm tiền để có thể sử dụng dịch vụ đỗ xe!")
     print("1. Quay lại")
-    print("2. Exit")
-    command(success_student_login, exit)
+    command(success_student_login)
 
 def transactionHistory(): 
     xoamanhinh()  
@@ -177,8 +176,7 @@ def transactionHistory():
             else:
                 print("Bạn chưa thực hiện giao dịch nào. Vui lòng quay lại sau.")
     print("1. Quay lại")
-    print("2. Exit")
-    command(success_student_login, exit)
+    command(success_student_login)
 
 def payin():
     xoamanhinh()
@@ -200,8 +198,7 @@ def payin():
             except: 
                 print("\033[31mGiao dịch thất bại! Vui lòng thử lại sau\033[0m")
     print("1. Quay lại")
-    print("2. Exit")
-    command(success_student_login, exit)
+    command(success_student_login)
 
 def vehiclePosition():
     xoamanhinh()
@@ -226,8 +223,7 @@ def vehiclePosition():
             else: 
                 print("Bạn chưa gửi xe!")         
     print("1. Quay lại")
-    print("2. Exit")
-    command(success_student_login, exit)
+    command(success_student_login)
 
 def std_changePassword():
     xoamanhinh()
@@ -242,7 +238,7 @@ def std_changePassword():
                     SET password = %s
                     WHERE mssv = %s
                     """, (newPassword, student_login_info["mssv"]))
-                    print("Update thành công")
+                    print("\033[32mUpdate thành công!\033[0m")
                 except: 
                     print("Lỗi hệ thống")  
     else:
@@ -252,8 +248,7 @@ def std_changePassword():
         command(std_changePassword, success_student_login)
         return   
     print("1. Quay lại")
-    print("2. Exit")
-    command(success_student_login, exit)
+    command(success_student_login)
 
 def staff_login():
     xoamanhinh()
@@ -576,7 +571,7 @@ def admin_login():
         print("Bạn không còn quyền truy cập với tư cách Admin!")
         print("1. Quay lại")
         print("2. Liên hệ Đức Mạnh để cấp quyền truy cập")
-        command(login, exit)
+        command(login, menu)
 
 def success_admin_login():
     xoamanhinh()
@@ -601,7 +596,7 @@ def student_manage():
 
 def addStudent():
     xoamanhinh()
-    print("Thêm sinh viên")
+    print("[THÊM SINH VIÊN]")
     name = input("Hãy nhập tên sinh viên: ")
     while True:
         mssv = input("Mã số sinh viên: ") 
@@ -612,7 +607,7 @@ def addStudent():
         with conn.cursor() as cursor: 
             try:
                 cursor.execute("CALL addStudent(%s, %s)", (mssv, name))
-                print(f"Thêm {name} thành công! Mật khẩu mặc định của sinh viên là '123456'.")
+                print(f"\033[32mThêm {name} thành công!\033[0m \nMật khẩu mặc định của sinh viên là '123456'.")
             except psycopg2.IntegrityError as e:
                     print("Mã số sinh viên đã tồn tại!")
             except:
@@ -624,7 +619,7 @@ def addStudent():
 
 def deleteStudent():
     xoamanhinh()
-    print("Xóa sinh viên")
+    print("[XÓA SINH VIÊN]")
     mssv = input("Mã số sinh viên: ")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
@@ -633,19 +628,18 @@ def deleteStudent():
                 name = cursor.fetchone()
                 print(f"Có phải là {name[0]} không?")
                 if int(input("1. Có\n2. Không\nCommand: ")) == 1:
+                    xoamanhinh()
                     cursor.execute("DELETE FROM student WHERE mssv = %s", (mssv,))
-                    print(f"Xóa sinh viên {mssv} thành công!")
-            except psycopg2.IntegrityError:
-                    print("Mã số sinh viên không tồn tại!")
+                    print(f"\033[32mXóa sinh viên {mssv} thành công!\033[0m")
             except:
-                print("Xóa sinh viên thất bại do xảy ra lỗi!")
+                print("\033[31mMã số sinh viên không tồn tại!\033[0m")
     print("1. Xóa sinh viên khác")
     print("2. Quay lại")
     command(deleteStudent, student_manage)
 
 def modifyStudent():
     xoamanhinh()
-    print("Sửa thông tin sinh viên")
+    print("SỬA SINH VIÊN")
     mssv = input("Mã số sinh viên cần sửa: ")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
@@ -657,19 +651,19 @@ def modifyStudent():
                     new_name = input("Nhập tên mới (nhấn Enter để giữ nguyên): ") or student[0]
                     cursor.execute("UPDATE student SET fullname = %s WHERE mssv = %s", (new_name, mssv))
                     conn.commit()
-                    print(f"Cập nhật thông tin sinh viên {mssv} thành công!")
+                    print(f"\033[32mCập nhật thành công!\033[0m")
                 else:
-                    print("Không tìm thấy sinh viên với MSSV đã nhập.")
+                    print("\033[31mMSSV không tồn tại!\033[0m")
             except Exception as e:
                 print(f"Sửa thông tin sinh viên thất bại do xảy ra lỗi: {e}")
     
-    print("1. Sửa thông tin sinh viên khác")
+    print("1. Sửa sinh viên khác")
     print("2. Quay lại")
     command(modifyStudent, student_manage)
 
 def reviewStudent():
     xoamanhinh()
-    print("Duyệt thông tin sinh viên")
+    print("[DUYỆT SINH VIÊN]")
     with psycopg2.connect(**conn_params) as conn: 
         with conn.cursor() as cursor: 
             try:
@@ -916,6 +910,7 @@ def staff_accept(user_email,name):
         with conn.cursor() as cursor:
             try:
                 while True:
+                    xoamanhinh()
                     print("Chọn bãi đỗ xe:")
                     cursor.execute("SELECT name FROM parking_lot")
                     parkinglots = cursor.fetchall()
@@ -1128,12 +1123,12 @@ def database_manage():
     command(er_model, sql_query, success_admin_login)
 
 def er_model():
-    os.system('start D:\Programming\CARPARKINGLOTPROJECT\\readme\er_graph.png')
+    os.system(r"start readme\erd.svg")
     database_manage()
 
 def sql_query():
     xoamanhinh()
-    print("SQL Tiện Lợi")
+    print("[SQL TIỆN LỢI]")
     sqlcmd = input("SQL Command: ")
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor: 
@@ -1156,7 +1151,7 @@ def sql_query():
 
 def revenue_manage():
     xoamanhinh()
-    print("Quản lý doanh thu")
+    print("[QUẢN LÝ DOANH THU]")
     print("1. Thống kê doanh thu theo ngày")
     print("2. Thống kê doanh thu theo tháng")
     print("3. Thống kê doanh thu theo năm")
@@ -1165,7 +1160,7 @@ def revenue_manage():
 
 def revenue_day():
     xoamanhinh()
-    print("Thống kê doanh thu theo ngày")
+    print("[THỐNG KÊ DOANH THU THEO NGÀY]")
     # default date is today
     print("Mặc định là ngày hôm nay, có thể nhập nhiều ngày khác nhau")
     dates = input("Nhập ngày (yyyy/mm/dd): ")
@@ -1203,13 +1198,13 @@ def revenue_day():
                     else:
                         rows.extend([(dates[i], 0, 0)])
                 print(tabulate(rows, headers=header, tablefmt="github"))
-                graph = input("Xuất đồ thị không? (1/0): ")
-                if graph == "1":
-                    if len(rows) > 3:
-                        dates_plot = [row[0] for row in rows]
+                if len(rows) > 3:
+                    graph = input("Xuất đồ thị không? (1/0): ")
+                    if graph == "1":
+                        dates_plot = [str(row[0]) for row in rows]
                         revenue_plot = [row[1] for row in rows]
                         plt.figure(figsize=(10, 5))
-                        plt.plot(dates_plot, revenue_plot, marker='o')
+                        plt.bar(dates_plot, revenue_plot)
                         plt.xlabel('Ngày')
                         plt.ylabel('Doanh thu')
                         plt.title('Doanh thu theo ngày')
@@ -1225,7 +1220,7 @@ def revenue_day():
 
 def revenue_month():
     xoamanhinh()
-    print("Thống kê doanh thu theo tháng")
+    print("[THỐNG KÊ DOANH THU THEO THÁNG]")
     # default month is this month
     print("Mặc định là tháng hiện tại, có thể nhập nhiều tháng khác nhau")
     months = input("Nhập tháng (mm/yyyy): ")
@@ -1260,20 +1255,20 @@ def revenue_month():
                     themonth = [int(x) for x in themonth] if themonth else [months[i]["year"], months[i]["month"], 0, 0]
                     rows.extend([themonth])
                 print(tabulate(rows, headers=header, tablefmt="github"))
-                graph = input("Xuất đồ thị không? (1/0): ")
-                if graph == "1":
-                    if len(rows) > 3:
-                        year_months_plot = ["{}/{}".format(row[0], row[1]) for row in rows]
-                        revenue_plot = [row[3] for row in rows]
-                        plt.figure(figsize=(10, 5))
-                        plt.plot(year_months_plot, revenue_plot, marker='o')
-                        plt.xlabel('Tháng')
-                        plt.ylabel('Doanh thu')
-                        plt.title('Doanh thu theo tháng')
-                        plt.xticks(rotation=45)
-                        plt.tight_layout()
-                        plt.savefig(r"revenue\month_revenue_created_at_{}.png".format(datetime.now().strftime("%d-%m-%Y")))
-                        plt.show()
+                if len(rows) > 3:
+                    graph = input("Xuất đồ thị không? (1/0): ")
+                    if graph == "1":
+                            year_months_plot = ["{}/{}".format(row[0], row[1]) for row in rows]
+                            revenue_plot = [row[3] for row in rows]
+                            plt.figure(figsize=(10, 5))
+                            plt.bar(year_months_plot, revenue_plot)
+                            plt.xlabel('Tháng')
+                            plt.ylabel('Doanh thu')
+                            plt.title('Doanh thu theo tháng')
+                            plt.xticks(rotation=45)
+                            plt.tight_layout()
+                            plt.savefig(r"revenue\month_revenue_created_at_{}.png".format(datetime.now().strftime("%d-%m-%Y")))
+                            plt.show()
             except psycopg2.Error as e:
                 print("Error: ", e)
     print("1. Thử lại")
@@ -1282,7 +1277,7 @@ def revenue_month():
 
 def revenue_year():
     xoamanhinh()
-    print("Doanh thu năm nay")
+    print("[DOANH THU NĂM NAY]")
     # default year is this year
     year = datetime.now().strftime("%Y")
     with psycopg2.connect(**conn_params) as conn:
@@ -1308,14 +1303,17 @@ def revenue_year():
 
 def signup():
     xoamanhinh()
-    print("1. Sinh viên đăng kí gửi xe bằng thẻ sinh viên")
-    print("2. Đăng kí trở thành nhân viên nhà xe")
+    print("[ĐĂNG KÝ]")
+    print("1. Sinh viên")
+    print("2. Nhân viên")
     print("3. Quay lại")
     command(student_signup, staff_signup, menu)
 
 def student_signup():
     balance = 0
     xoamanhinh()
+    print("\033[1m[ĐĂNG KÝ SINH VIÊN]\033[0m")
+    print("\033[3mSinh viên cần có thẻ sinh viên để đăng ký.\033[0m")
     fullname = input("Tên: ")
     mssv = input("MSSV: ")
     while not(re.match(mssv_regex, mssv)):
@@ -1332,20 +1330,22 @@ def student_signup():
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
-                cursor.execute("""INSERT INTO customer(customertype) VALUES(%s) RETURNING customerid""",('t',))
+                cursor.execute("""INSERT INTO customer(customertype) VALUES(%s) RETURNING customerid""", ('t',))
                 ID = cursor.fetchone()[0]
-                cursor.execute("INSERT INTO student VALUES(%s, %s, %s, %s, %s)", (ID,fullname,mssv,balance,password))
+                cursor.execute("INSERT INTO student VALUES(%s, %s, %s, %s, %s)", (ID, fullname, mssv, balance, password))
                 conn.commit()
-                print("Tài khoản của bạn đã đăng kí thành công!")
+                xoamanhinh()
+                print("\033[32mĐăng kí thành công!\033[0m")
                 print("1. Đăng nhập")
                 print("2. Thoát")
-                command(student_login, exit)
+                command(student_login, menu)
                 return
-            except psycopg2.IntegrityError as e:
-                print("Tài khoản của bạn đã tồn tại.")
+            except:
+                xoamanhinh()
+                print("\033[31mMSSV đã tồn tại!\033[0m")
                 print("1. Thử lại")
                 print("2. Thoát")
-                command(student_signup, exit)
+                command(student_signup, menu)
                 return
 
 
@@ -1406,7 +1406,7 @@ def staff_signup():
             try:
                 cursor.execute("""INSERT INTO application(fullname, datebirth, email) 
                               VALUES(%s,%s,%s) RETURNING id""",(fullname,datebirth,email))
-                print("Đăng kí thành công, vui lòng nộp CV của bạn cho chúng tôi và kiểm tra email thường xuyên!")
+                print("\033[32mĐăng kí thành công\033[0m\n vui lòng nộp CV của bạn cho chúng tôi và kiểm tra email thường xuyên!")
                 conn.commit()
             except:
                 print("Lỗi không thể đăng kí, vui lòng thử lại sau")
@@ -1417,8 +1417,8 @@ def fail_login():
     xoamanhinh()
     print("Bạn đã nhập sai tài khoản hoặc mật khẩu. Hãy thử lại!")
     print("1. Log in")
-    print("2. Exit")
-    command(login, exit) 
+    print("2. Quay lại")
+    command(login, menu) 
 
 def logout():
     reset_all_login_info()
