@@ -14,7 +14,6 @@ from email.header import decode_header
 from account import conn_params, host_email, host_password
 import matplotlib.pyplot as plt
 
-
 # Thiết lập thông tin kết nối
 DATABASE_URL = "postgresql://aefxhjyk:mvcwwnkrihotyjymxixe@alpha.india.mkdb.sh:5432/aqatqqkl"
 
@@ -336,7 +335,7 @@ def student_in():
                     balance = balance[0] # chuyển từ tuple sang int
                     if balance >= price:
                         print("***DEMO CHO QUÉT HÌNH ẢNH XE VÀ BIỂN SỐ XE***")
-                        if color := input("Màu xe") not in color_translation.keys():
+                        if color := input("Màu xe: ") not in color_translation.keys():
                             print("Màu xe không hợp lệ!")
                             input("Nhấn Enter để tiếp tục...")
                         # kiểm tra xe này đẫ có trong danh sách xe từng đỗ ở bãi không?
@@ -402,10 +401,13 @@ def student_out():
     with psycopg2.connect(**conn_params) as conn:
             with conn.cursor() as cursor:
                 cursor.execute("""
-                               SELECT license_plate, color, vehicleTypeId
-                               FROM now_vehicle JOIN park USING (vehicleid)
+                               SELECT license_plate, color, vehicleTypeId, park
+                               FROM now_vehicle JOIN park USING (vehicleid) 
+                                    NATURAL JOIN parking_spot
+                                    NATURAL JOIN parking_lot
                                WHERE customerId = getCustomerId(%s) 
-                               AND exit_time IS NULL""",  (mssv,))
+                                     AND parking_lot.name = %s
+                                     AND exit_time IS NULL""",  (mssv, staff_login_info["parkname"]))
                 info = cursor.fetchone()
                 if info is None:
                     print("\033[91mSinh viên không có xe trong bãi!\033[0m")
@@ -413,7 +415,7 @@ def student_out():
                     staff_work()
                     return
                 else:
-                    license_plate, color, vehicleTypeId = info
+                    license_plate, color, vehicleTypeId, null = info
     print("***DEMO CHO QUÉT THÔNG TIN XE***")
     print("1. Xe máy")
     print("2. Xe đạp")
@@ -499,9 +501,16 @@ def visitor_out():
     with psycopg2.connect(**conn_params) as conn:
         with conn.cursor() as cursor:
             try:
-                cursor.execute("SELECT license_plate, color, vehicleTypeId FROM now_vehicle WHERE customerId = getCustomerId(%s)", (ticket,))
+                cursor.execute("SELECT license_plate, color, vehicleid FROM now_vehicle WHERE customerId = getCustomerId(%s)", (ticket,))
                 info = cursor.fetchone()
-                license_plate, color, vehicleTypeId = info
+                license_plate, color, vehicleid = info
+                cursor.execute("SELECT parking_lot.name FROM park NATURAL JOIN parking_spot NATURAL JOIN parking_lot WHERE vehicleid = %s", (vehicleid,))
+                lot = cursor.fetchone()[0]
+                if (lot != staff_login_info["parkname"]):
+                    print("\033[91mVé không hợp lệ!\033[0m")
+                    input("Nhấn Enter để tiếp tục...")
+                    staff_work()
+                    return
                 if license_plate != input_license_plate or color != input_color:
                     print("\033[91mĐây không phải là xe của bạn!\033[0m")
                     input("Nhấn Enter để tiếp tục...")
@@ -800,7 +809,7 @@ def modifyStaff():
                     cursor.execute("UPDATE staff SET password = %s WHERE staffid = %s",(content,id))
                     print("\033[32mĐổi mật khẩu thành công.\033[0m")
                 elif cmd == "ModifyParkingLot":
-                    cursor.execute("UPDATE staff SET parkinglot = %s WHERE staffid = %s",(content,id))
+                    cursor.execute("UPDATE staff SET parkinglotid = %s WHERE staffid = %s",(content,id))
                     print("\033[32mThay đổi nơi làm việc thành công.\033[0m")
                 conn.commit()
             except:
